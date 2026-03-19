@@ -1,0 +1,47 @@
+Senior Data Scientist – ACME Corp
+Location: Remote (EU timezone preferred)
+
+Type: Full-time
+
+About the Role:
+We're looking for a Senior Data Scientist to join our Core Analytics team. You will lead the development of end-to-end machine learning solutions that drive product innovation and business growth. You’ll be responsible for everything from exploratory data analysis and feature engineering to deploying scalable models in production and mentoring junior team members.
+
+Requirements:
+
+5+ years of experience in data science, machine learning, or predictive modeling
+
+Deep expertise in Python and the PyData stack (Pandas, Scikit-learn, NumPy)
+
+Strong experience with Deep Learning frameworks (PyTorch or TensorFlow)
+
+Proficiency in SQL and working with large-scale data warehouses (Snowflake, BigQuery)
+
+Solid understanding of statistical modeling, experimental design (A/B testing), and causal inference
+
+Experience deploying models into production environments using Docker or Kubernetes
+
+Advanced degree (M.S. or Ph.D.) in a quantitative field (Math, CS, Physics, or Statistics)
+
+Nice to Have:
+
+Experience with MLOps tools (MLflow, Kubeflow, or SageMaker)
+
+Familiarity with NLP (Large Language Models) or Computer Vision
+
+Contributions to open-source data science libraries
+
+Experience with real-time stream processing (Kafka, Flink)
+
+What You’ll Do:
+
+Design, build, and maintain predictive models that impact core business KPIs
+
+Lead the "data-first" strategy for product features from ideation to launch
+
+Build automated data pipelines and feature stores to support model training
+
+Communicate complex technical findings to non-technical stakeholders to drive decision-making
+
+Conduct rigorous code reviews and mentor junior data scientists on best practices
+
+Collaborate with Data Engineering to optimize model performance and scalability in the cloud
