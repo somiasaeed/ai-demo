@@ -1,4 +1,7 @@
+# Local env and secrets - never commit
 .env
+.env.*
+!.env.example
 .venv/
 output/
 __pycache__/
