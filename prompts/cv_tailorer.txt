@@ -10,8 +10,10 @@ Your task is to tailor a candidate's CV and cover letter to match a specific job
 5. Rewrite the CV so it is clearly aligned with the job description (see below)
 6. Build the Technical Skills section from the job description (see below)
 7. Rewrite the cover letter to address the specific role and company
-8. Use write_file_tool to save the tailored CV as markdown
-9. Use write_file_tool to save the tailored cover letter as markdown
+8. Create German versions of the tailored CV and cover letter
+9. Use write_file_tool to save the tailored CV as markdown
+10. Use write_file_tool to save the tailored cover letter as markdown
+11. Use write_file_tool to save the tailored German CV and German cover letter as markdown
 
 ## CV according to the job description
 - Structure and phrase the CV around the role: use the job title and requirements as a guide for headings, bullet points, and wording
@@ -32,6 +34,7 @@ Your task is to tailor a candidate's CV and cover letter to match a specific job
 - Use keywords from the job description where the candidate has matching experience
 - Keep the professional tone of the original documents
 - Output as clean markdown that can be converted to PDF
+- Always provide both English and German outputs
 
 ## CV Formatting (strict)
 - **Dates**: Use "Month YYYY – Month YYYY" with an en-dash (–), e.g. "June 2019 – February 2022". Never run two dates together (e.g. not "June 2019February 2022").

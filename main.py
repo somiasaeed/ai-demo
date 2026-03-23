@@ -84,6 +84,8 @@ def cmd_cvtailor(args: argparse.Namespace) -> None:
     print(f"Output saved to {args.output_dir}/ (v{version}):")
     print(f"  tailored_cv_v{version}.md  + .pdf  + .docx")
     print(f"  tailored_cover_letter_v{version}.md  + .pdf  + .docx")
+    print(f"  tailored_cv_de_v{version}.md  + .pdf  + .docx")
+    print(f"  tailored_cover_letter_de_v{version}.md  + .pdf  + .docx")
     print(f"\nCompleted in {elapsed:.1f}s")
 
 

@@ -78,6 +78,8 @@ class CVTailorerAgent(BaseAgent):
         version = self._next_version(output_dir)
         cv_out = f"{output_dir}/tailored_cv_v{version}.md"
         cl_out = f"{output_dir}/tailored_cover_letter_v{version}.md"
+        cv_de_out = f"{output_dir}/tailored_cv_de_v{version}.md"
+        cl_de_out = f"{output_dir}/tailored_cover_letter_de_v{version}.md"
 
         prompt = f"""\
 Please tailor my CV and cover letter for the job description.
@@ -87,20 +89,35 @@ Files:
 - Cover Letter: {cover_letter_path}
 - Job Description: {job_desc_path}
 
-Save the tailored versions to:
+Create BOTH English and German versions.
+
+Save the tailored ENGLISH versions to:
 - {cv_out}
 - {cl_out}
 
-Read all three files first, then produce the tailored versions.
-After writing both files, provide a brief summary of the key changes you made."""
+Save the tailored GERMAN versions to:
+- {cv_de_out}
+- {cl_de_out}
+
+Requirements for German output:
+- Translate professionally into natural German for Germany/Europe job market
+- Keep all factual details accurate (dates, companies, certifications)
+- Keep formatting structure equivalent to English version
+
+Read all three files first, then produce all four tailored files.
+After writing all files, provide a brief summary of the key changes you made."""
 
         result = self.run(prompt)
 
-        # Convert the markdown outputs to PDF and Word
+        # Convert markdown outputs to PDF and Word (English + German)
         self._md_to_pdf(cv_out, cv_out.replace(".md", ".pdf"), photo_path=photo_path)
         self._md_to_pdf(cl_out, cl_out.replace(".md", ".pdf"))
         self._md_to_docx(cv_out, cv_out.replace(".md", ".docx"), photo_path=photo_path)
         self._md_to_docx(cl_out, cl_out.replace(".md", ".docx"))
+        self._md_to_pdf(cv_de_out, cv_de_out.replace(".md", ".pdf"), photo_path=photo_path)
+        self._md_to_pdf(cl_de_out, cl_de_out.replace(".md", ".pdf"))
+        self._md_to_docx(cv_de_out, cv_de_out.replace(".md", ".docx"), photo_path=photo_path)
+        self._md_to_docx(cl_de_out, cl_de_out.replace(".md", ".docx"))
 
         return result
 
