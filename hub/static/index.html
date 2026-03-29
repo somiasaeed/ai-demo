@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Agent Hub</title>
+  <style>
+    :root { --bg: #111827; --card: #1f2937; --text: #f3f4f6; --muted: #9ca3af; --accent: #38bdf8; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 1.5rem; max-width: 42rem; margin-inline: auto; }
+    h1 { font-size: 1.35rem; margin-top: 0; }
+    p.muted { color: var(--muted); font-size: 0.9rem; }
+    section { background: var(--card); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; border: 1px solid #374151; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+    input, textarea { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #4b5563; background: #111827; color: var(--text); font-size: 0.9rem; }
+    textarea { min-height: 5rem; font-family: ui-monospace, monospace; }
+    button { margin-top: 0.5rem; padding: 0.45rem 1rem; border: none; border-radius: 6px; background: var(--accent); color: #0f172a; font-weight: 600; cursor: pointer; }
+    button:hover { filter: brightness(1.05); }
+    pre { white-space: pre-wrap; word-break: break-word; background: #0b1220; padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; max-height: 16rem; overflow: auto; }
+    .row { margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>AI Agent Hub</h1>
+  <p class="muted">REST base: <code>/api/agents/…</code> · Telegram: <code>POST /webhook/telegram</code></p>
+
+  <section>
+    <label for="base">API origin</label>
+    <input id="base" type="text" placeholder="http://127.0.0.1:8080" />
+  </section>
+
+  <section>
+    <h2 style="margin-top:0;font-size:1rem;">CV Tailor</h2>
+    <label>CV text</label>
+    <textarea id="cvText" placeholder="Paste CV…"></textarea>
+    <label>Job description</label>
+    <textarea id="cvJob" placeholder="Paste job description…"></textarea>
+    <button type="button" data-action="cv-tailor">POST /api/agents/cv-tailor</button>
+    <div class="row"><pre id="outCv"></pre></div>
+  </section>
+
+  <section>
+    <h2 style="margin-top:0;font-size:1rem;">CV Tailor → output/ (same as Telegram)</h2>
+    <p class="muted">Uses <code>samples/cv.md</code> + <code>cover_letter.md</code>; writes tailored EN/DE md/pdf/docx under <code>output/</code>.</p>
+    <label>Job description (or tick “use file” below)</label>
+    <textarea id="cvFilesJob" placeholder="Paste job posting…"></textarea>
+    <label><input type="checkbox" id="cvFilesUseSample" /> Use <code>samples/job_description.txt</code> instead</label>
+    <button type="button" data-action="cv-tailor-files">POST /api/agents/cv-tailor-files</button>
+    <div class="row"><pre id="outCvFiles"></pre></div>
+  </section>
+
+  <section>
+    <h2 style="margin-top:0;font-size:1rem;">Weather</h2>
+    <label>Place</label>
+    <input id="wxQuery" type="text" placeholder="e.g. Berlin" />
+    <button type="button" data-action="weather">POST /api/agents/weather</button>
+    <div class="row"><pre id="outWx"></pre></div>
+  </section>
+
+  <section>
+    <h2 style="margin-top:0;font-size:1rem;">Recipe Creator</h2>
+    <label>Prompt</label>
+    <textarea id="recipePrompt" placeholder="e.g. vegetarian pasta with mushrooms, 30 min"></textarea>
+    <button type="button" data-action="recipe">POST /api/agents/recipe</button>
+    <div class="row"><pre id="outRecipe"></pre></div>
+  </section>
+
+  <section>
+    <h2 style="margin-top:0;font-size:1rem;">General (Telegram default)</h2>
+    <label>Message</label>
+    <textarea id="genMsg" placeholder="Anything…"></textarea>
+    <button type="button" data-action="general">POST /api/agents/general</button>
+    <div class="row"><pre id="outGen"></pre></div>
+  </section>
+
+  <script>
+    const baseEl = document.getElementById("base");
+    baseEl.value = window.location.origin;
+
+    async function post(path, body, outId) {
+      const root = baseEl.value.replace(/\/$/, "");
+      const out = document.getElementById(outId);
+      out.textContent = "…";
+      try {
+        const r = await fetch(root + path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const t = await r.text();
+        let j;
+        try { j = JSON.parse(t); } catch { j = t; }
+        out.textContent = typeof j === "object" ? JSON.stringify(j, null, 2) : t;
+      } catch (e) {
+        out.textContent = String(e);
+      }
+    }
+
+    document.querySelector('[data-action="cv-tailor"]').onclick = () =>
+      post("/api/agents/cv-tailor", {
+        cv_text: document.getElementById("cvText").value,
+        job_description: document.getElementById("cvJob").value,
+      }, "outCv");
+
+    document.querySelector('[data-action="cv-tailor-files"]').onclick = () =>
+      post(
+        "/api/agents/cv-tailor-files",
+        {
+          job_description: document.getElementById("cvFilesJob").value,
+          use_sample_job_file: document.getElementById("cvFilesUseSample").checked,
+        },
+        "outCvFiles"
+      );
+
+    document.querySelector('[data-action="weather"]').onclick = () =>
+      post("/api/agents/weather", { query: document.getElementById("wxQuery").value }, "outWx");
+
+    document.querySelector('[data-action="recipe"]').onclick = () =>
+      post("/api/agents/recipe", { prompt: document.getElementById("recipePrompt").value }, "outRecipe");
+
+    document.querySelector('[data-action="general"]').onclick = () =>
+      post("/api/agents/general", { message: document.getElementById("genMsg").value }, "outGen");
+  </script>
+</body>
+</html>

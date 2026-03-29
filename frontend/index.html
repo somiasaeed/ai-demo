@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Demo — Agents</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>Agent dashboard</h1>
+    <p class="muted">Calls <code>/api/v1/invoke</code> — same JSON you can send from Telegram.</p>
+  </header>
+
+  <section class="panel">
+    <label>API base</label>
+    <input type="text" id="apiBase" value="" placeholder="http://127.0.0.1:8000" />
+    <label>Optional <code>X-API-Key</code> (if set in <code>.env</code>)</label>
+    <input type="password" id="apiKey" placeholder="leave empty if API_KEY_HEADER not set" autocomplete="off" />
+    <button type="button" id="btnLoadAgents">Refresh agent list</button>
+  </section>
+
+  <section class="panel">
+    <h2>Registered agents</h2>
+    <ul id="agentList" class="agent-list"></ul>
+  </section>
+
+  <section class="panel">
+    <h2>Invoke</h2>
+    <label>Agent</label>
+    <select id="agentSelect"></select>
+    <label>JSON body</label>
+    <textarea id="jsonBody" rows="14" spellcheck="false"></textarea>
+    <div class="row">
+      <button type="button" id="btnInvoke">Run</button>
+      <span id="status" class="muted"></span>
+    </div>
+    <h3>Result</h3>
+    <pre id="result" class="result"></pre>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

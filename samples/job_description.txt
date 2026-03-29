@@ -1,47 +1,87 @@
-Senior Data Scientist – ACME Corp
-Location: Remote (EU timezone preferred)
+STADA+ Internship: Pricing Data & Process Transformation (f/m/d)   
 
-Type: Full-time
+Bad Vilbel | Germany (DE) | Full-time | Information Technology (IT) | Internships / Students 
 
-About the Role:
-We're looking for a Senior Data Scientist to join our Core Analytics team. You will lead the development of end-to-end machine learning solutions that drive product innovation and business growth. You’ll be responsible for everything from exploratory data analysis and feature engineering to deploying scalable models in production and mentoring junior team members.
+ 
 
-Requirements:
+From Kick-Start to Real Impact – What is STADA+?
 
-5+ years of experience in data science, machine learning, or predictive modeling
+STADA+ is more than an internship task.
 
-Deep expertise in Python and the PyData stack (Pandas, Scikit-learn, NumPy)
+It’s your opportunity to work on real business challenges with real impact.
 
-Strong experience with Deep Learning frameworks (PyTorch or TensorFlow)
+ 
 
-Proficiency in SQL and working with large-scale data warehouses (Snowflake, BigQuery)
+As a STADA+ intern, you work exclusively on one dedicated business case. You take ownership, collaborate with experts across functions and help transform ideas into tangible outcomes – not just slides, but initiatives that move STADA forward. Learn more about our STADA+ program here.
 
-Solid understanding of statistical modeling, experimental design (A/B testing), and causal inference
+ 
 
-Experience deploying models into production environments using Docker or Kubernetes
+Your STADA+ Business Case
 
-Advanced degree (M.S. or Ph.D.) in a quantitative field (Math, CS, Physics, or Statistics)
+In this STADA+ case, you will support the development and rollout of a harmonized pricing tool with the objective of creating a single source of truth for pricing data across STADA Europe.
 
-Nice to Have:
+The initiative focuses on simplifying fragmented pricing data, automating reporting processes and enabling faster, more reliable pricing decisions across markets – laying the foundation for future global scalability.
 
-Experience with MLOps tools (MLflow, Kubeflow, or SageMaker)
+ 
 
-Familiarity with NLP (Large Language Models) or Computer Vision
+Your focus will be on:
 
-Contributions to open-source data science libraries
+Supporting the harmonization of pricing data across countries, systems and Excel-based sources
+Contributing to the design and implementation of a centralized pricing table and reporting logic
+Analyzing pricing data to improve transparency, governance and decision-making
+Supporting pilot implementation and rollout preparation across European markets
+Helping to identify efficiency gains, risk reduction and business impact from improved pricing processes
+ 
 
-Experience with real-time stream processing (Kafka, Flink)
+Case Owners: Altinok Gürtay, Head of IT Regulatory & Sebastian Thelen, Senior Director Global Supply Planning E2E Planning Excellence
 
-What You’ll Do:
+ 
 
-Design, build, and maintain predictive models that impact core business KPIs
+What You Can Expect
 
-Lead the "data-first" strategy for product features from ideation to launch
+ 
 
-Build automated data pipelines and feature stores to support model training
+Ownership of a real, strategically relevant STADA+ business case with measurable financial impact
+Hands-on exposure to pricing, commercial governance and data-driven decision-making
+Involvement in a multi-country pilot and European rollout project
+Close collaboration with commercial, finance, IT and regional stakeholders
+A fast-paced, entrepreneurial working environment with strong learning opportunities
+ 
 
-Communicate complex technical findings to non-technical stakeholders to drive decision-making
+Who We Are Looking For
 
-Conduct rigorous code reviews and mentor junior data scientists on best practices
+ 
 
-Collaborate with Data Engineering to optimize model performance and scalability in the cloud
+You are currently enrolled in an advanced stage of your Bachelor’s degree or enrolled in a Master’s program
+Your background is in Business Administration, Economics, Data Science, Computer Science, Business Informatics or a related field
+You bring either a strong data-focused or process-focused profile, ideally with an interest in pricing, commercial or enterprise-wide data topics:
+Data focus: You enjoy working with data models, structured datasets and reporting logic, and are interested in supporting the design or enhancement of a harmonized pricing data model
+Process focus: You have a strong interest in analyzing, documenting and structuring business processes and supporting organizational change initiatives
+You are comfortable working with SQL queries, Snowflake, Data Bricks or similar and building reports in Power BI, but can also still process data in more traditional tools like Excel
+You work structured, analytical and solution-oriented, even in complex environments
+You are curious, proactive and enjoy collaborating with cross-functional and international stakeholders
+ 
+
+What we offer
+
+ 
+
+An open corporate culture with fast decision-making processes and a lot of potential for your personal development
+Attractive compensation in line with industry standards
+Flexible working hours that are compatible with your lecture times
+Job ticket for the RMV region
+Childcare allowance
+Health-promoting offers such as Wellpass or the STADA Gym (free of charge)
+Subsidized cafeteria
+ 
+
+…Ready to Grow Your Own Way?
+
+ 
+
+We look forward to receiving your application via our career portal. At jobs.stada.com you will also find numerous other job opportunities, as we are always looking for motivated talents who can strengthen our team with their expertise and personality. Do you have further questions? Then please reach out to recruiting@stada.de. We will consider requests to work part-time on an individual basis. Please contact us in advance by e-mail (recruiting@stada.de) and let us know how many hours per week you would like to work.
+
+ 
+
+STADA Group promotes its diverse culture, regardless of gender, age, social or ethnic origin, disabilities, religion, ideology or sexual orientation. We use the strength of this diversity to develop creative ideas, expand our experience and increase innovative strength. Our focus is on equal opportunities, respectful cooperation and the promotion of an inclusive working environment.  
+#LI-DNI
