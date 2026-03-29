@@ -121,7 +121,8 @@ async def _run_cv_telegram(text: str) -> str:
             "Or use the file on disk:\n"
             "cv file\n"
             "(uses samples/job_description.txt)\n\n"
-            "Sources: samples/cv.md + samples/cover_letter.md → output/"
+            "Sources: samples/cv.pdf + cover_letter.pdf (or .md) → output/\n"
+            "Photo: photos/photo.jpg or CV_PHOTO_PATH in .env"
         )
 
     if _cv_uses_sample_job_file(body):
@@ -167,7 +168,7 @@ async def _run_cv_telegram(text: str) -> str:
 TELEGRAM_HELP = (
     "Commands:\n"
     "• weather <city>\n"
-    "• cv <job description> — tailors samples/cv.md + cover_letter.md → output/\n"
+    "• cv <job description> — needs samples/cv.pdf (YOUR details) + cover letter → output/\n"
     "• cv file — use samples/job_description.txt as the job posting\n"
     "• cv notes | job description — optional split\n"
     "• /cvfile — same as “cv file”\n"
