@@ -1,9 +1,14 @@
-"""AI Agent Hub — run: `uv run uvicorn hub.main:app --reload --host 127.0.0.1 --port 8080`"""
+"""AI Agent Hub — run: `uvicorn hub.main:app --host 127.0.0.1 --port 80`"""
 
 import logging
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from hub.routers import rest_agents, telegram_webhook
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 for _name in (
@@ -28,11 +33,7 @@ def _filter_reasoning_warning(record: logging.LogRecord) -> bool:
 
 for _name in ("strands.models.openai", "strands.models"):
     logging.getLogger(_name).addFilter(_filter_reasoning_warning)
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
-from hub.routers import rest_agents, telegram_webhook
 
 _STATIC = Path(__file__).resolve().parent / "static"
 

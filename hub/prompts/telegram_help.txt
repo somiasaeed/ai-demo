@@ -1,0 +1,10 @@
+Welcome! Send any message to get started.
+
+I'll ask which agent you want to use:
+  CV Tailor  - tailor your CV + cover letter for a job
+  Weather    - get weather for a city
+  Recipe    - create a recipe from a prompt
+  General Chat - chat about anything
+
+Commands:
+  /start, /help  -- show this message

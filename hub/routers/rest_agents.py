@@ -1,4 +1,4 @@
-"""REST endpoints — hub agents (aligned with Telegram dispatch where applicable)."""
+"""REST endpoints — hub agents."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from hub.agents.cv_tailor import CVTailorAgent
-from hub.agents.general_agent import GeneralAgent
-from hub.agents.recipe_creator import RecipeCreatorAgent
-from hub.agents.weather_agent import WeatherAgent
-from hub.services.cv_file_tailor import tailor_cv_from_samples_sync
+from hub.agents.cv_tailor_text import CVTailorTextAgent
+from hub.agents.general import GeneralAgent
+from hub.agents.recipe import RecipeAgent
+from hub.agents.weather import WeatherAgent
+from hub.services.cv_pipeline import tailor_cv_from_samples_sync
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -22,8 +22,6 @@ class CVTailorRequest(BaseModel):
 
 
 class CVTailorFilesRequest(BaseModel):
-    """Same pipeline as Telegram “cv …” — writes to output/ using samples/cv.md + cover_letter.md."""
-
     job_description: str | None = Field(
         default=None,
         description="Job posting text; ignored if use_sample_job_file is true",
@@ -61,12 +59,12 @@ class AgentResponse(BaseModel):
 
 @router.post("/cv-tailor", response_model=AgentResponse)
 async def cv_tailor(body: CVTailorRequest) -> AgentResponse:
-    agent = CVTailorAgent()
+    agent = CVTailorTextAgent()
     try:
         out = await agent.run(body.cv_text, body.job_description)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
-    return AgentResponse(agent="cv_tailor", result=out)
+    return AgentResponse(agent="cv_tailor_text", result=out)
 
 
 @router.post("/cv-tailor-files", response_model=AgentResponse)
@@ -102,12 +100,12 @@ async def weather(body: WeatherRequest) -> AgentResponse:
 
 @router.post("/recipe", response_model=AgentResponse)
 async def recipe(body: RecipeRequest) -> AgentResponse:
-    agent = RecipeCreatorAgent()
+    agent = RecipeAgent()
     try:
         out = await agent.run(body.prompt)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
-    return AgentResponse(agent="recipe_creator", result=out)
+    return AgentResponse(agent="recipe", result=out)
 
 
 @router.post("/general", response_model=AgentResponse)

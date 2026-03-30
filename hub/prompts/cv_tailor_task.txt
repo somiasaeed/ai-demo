@@ -1,0 +1,24 @@
+Please tailor my CV and cover letter for the job description.
+
+Files:
+- CV: {cv_path}
+- Cover Letter: {cover_letter_path}
+- Job Description: {job_desc_path}
+
+Create BOTH English and German versions.
+
+Save the tailored ENGLISH versions to:
+- {cv_out}
+- {cl_out}
+
+Save the tailored GERMAN versions to:
+- {cv_de_out}
+- {cl_de_out}
+
+Requirements for German output:
+- Translate professionally into natural German for Germany/Europe job market
+- Keep all factual details accurate (dates, companies, certifications)
+- Keep formatting structure equivalent to English version
+
+Read all three files first, then produce all four tailored files.
+After writing all files, provide a brief summary of the key changes you made.

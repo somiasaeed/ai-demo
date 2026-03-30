@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run:*)",
+      "Bash(rm -rf agents/ tools/ prompts/ settings.py main.py)",
+      "Bash(find . -type d -name __pycache__ -not -path './.venv/*' -exec rm -rf {} +)",
+      "Bash(rm -f settings.py main.py)",
+      "Bash(rm -rf agents/ tools/ prompts/)",
+      "Bash(for f:*)",
+      "Bash(do uv:*)",
+      "Bash(echo \"OK: $f\")",
+      "Bash(done)"
+    ]
+  }
+}

@@ -1,13 +1,13 @@
-"""Agent Hub agents (text/weather/recipe)."""
-
 from hub.agents.cv_tailor import CVTailorAgent
-from hub.agents.general_agent import GeneralAgent
-from hub.agents.recipe_creator import RecipeCreatorAgent
-from hub.agents.weather_agent import WeatherAgent
+from hub.agents.cv_tailor_text import CVTailorTextAgent
+from hub.agents.general import GeneralAgent
+from hub.agents.recipe import RecipeAgent
+from hub.agents.weather import WeatherAgent
 
 __all__ = [
     "CVTailorAgent",
+    "CVTailorTextAgent",
     "GeneralAgent",
-    "RecipeCreatorAgent",
+    "RecipeAgent",
     "WeatherAgent",
 ]

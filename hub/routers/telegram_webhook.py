@@ -8,18 +8,13 @@ import logging
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 
-from hub.config import get_hub_settings
+from hub.config import get_settings
 from hub.services.telegram_outbound import (
     answer_callback_query,
     register_bot_commands,
     send_telegram_message,
 )
-from hub.telegram_dispatch import (
-    AGENT_INPUT_PROMPTS,
-    KNOWN_AGENTS,
-    TELEGRAM_HELP,
-    run_telegram_agent,
-)
+from hub.telegram import dispatch as telegram_dispatch
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +59,14 @@ _AGENT_SELECTION_TEXT = "Which agent would you like to use?"
 # ---------- background runner ----------
 
 async def _run_agent_background(token: str, chat_id: int, agent_name: str, text: str) -> None:
-    """Run the agent in the background and send the result back to Telegram."""
+    # Send "working on it" status
+    status_msg = telegram_dispatch.AGENT_STATUS_MESSAGES.get(
+        agent_name, "Working on it — please wait..."
+    )
+    await send_telegram_message(token, chat_id, status_msg)
+
     try:
-        result = await run_telegram_agent(agent_name, text)
+        result = await telegram_dispatch.run_telegram_agent(agent_name, text)
         await send_telegram_message(token, chat_id, result)
     except Exception:
         logger.exception("Telegram pipeline failed")
@@ -79,17 +79,27 @@ async def _run_agent_background(token: str, chat_id: int, agent_name: str, text:
         except Exception:
             logger.exception("Failed to send error message to Telegram")
 
+    # Always show agent selection keyboard again after completion
+    try:
+        await send_telegram_message(
+            token, chat_id, _AGENT_SELECTION_TEXT,
+            reply_markup=_AGENT_SELECTION_KEYBOARD,
+        )
+    except Exception:
+        logger.exception("Failed to send agent selection keyboard")
+
 
 # ---------- webhook ----------
 
 @router.post("/telegram")
 async def telegram_webhook(payload: dict = Body(...)) -> JSONResponse:
-    hub = get_hub_settings()
-    if not hub.telegram_bot_token:
+    settings = get_settings()
+    if not settings.telegram_bot_token:
         logger.warning("TELEGRAM_BOT_TOKEN not set; webhook accepted but no reply sent")
         return JSONResponse({"ok": True})
 
-    token = hub.telegram_bot_token
+    telegram_dispatch._ensure_loaded()
+    token = settings.telegram_bot_token
 
     # --- Handle callback_query (inline button tap) ---
     callback = payload.get("callback_query")
@@ -98,15 +108,14 @@ async def telegram_webhook(payload: dict = Body(...)) -> JSONResponse:
         callback_id = callback.get("id")
         data = callback.get("data", "")
 
-        # Acknowledge the button tap immediately
         if callback_id:
             await answer_callback_query(token, callback_id)
 
         if data.startswith("agent:") and chat_id:
             agent_name = data.split(":", 1)[1]
-            if agent_name in KNOWN_AGENTS:
+            if agent_name in telegram_dispatch.KNOWN_AGENTS:
                 _set_state(chat_id, f"awaiting_input:{agent_name}")
-                prompt = AGENT_INPUT_PROMPTS.get(agent_name, "Please enter your input:")
+                prompt = telegram_dispatch.AGENT_INPUT_PROMPTS.get(agent_name, "Please enter your input:")
                 await send_telegram_message(token, chat_id, prompt)
             else:
                 await send_telegram_message(
@@ -135,21 +144,19 @@ async def telegram_webhook(payload: dict = Body(...)) -> JSONResponse:
         _processed_message_ids.add(message_id)
 
     if not text or text in ("/start", "/help"):
-        await send_telegram_message(token, chat_id, TELEGRAM_HELP)
+        await send_telegram_message(token, chat_id, telegram_dispatch.TELEGRAM_HELP)
         return JSONResponse({"ok": True})
 
     # Check conversation state
     state = _get_state(chat_id)
 
     if state.startswith("awaiting_input:"):
-        # User already selected an agent — run it with their input
         agent_name = state.split(":", 1)[1]
         _set_state(chat_id, "idle")
         asyncio.create_task(
             _run_agent_background(token, chat_id, agent_name, text)
         )
     else:
-        # User is idle — show agent selection keyboard
         await send_telegram_message(
             token, chat_id, _AGENT_SELECTION_TEXT,
             reply_markup=_AGENT_SELECTION_KEYBOARD,
@@ -162,6 +169,6 @@ async def telegram_webhook(payload: dict = Body(...)) -> JSONResponse:
 
 @router.on_event("startup")
 async def _on_startup() -> None:
-    hub = get_hub_settings()
-    if hub.telegram_bot_token:
-        await register_bot_commands(hub.telegram_bot_token)
+    settings = get_settings()
+    if settings.telegram_bot_token:
+        await register_bot_commands(settings.telegram_bot_token)

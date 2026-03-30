@@ -1,0 +1,9 @@
+Send your job description after "cv", for example:
+cv We are hiring a Senior Python engineer...
+
+Or use the file on disk:
+cv file
+(uses samples/job_description.txt)
+
+Sources: samples/cv.pdf + cover_letter.pdf (or .md) -> output/
+Photo: photos/photo.jpg or CV_PHOTO_PATH in .env

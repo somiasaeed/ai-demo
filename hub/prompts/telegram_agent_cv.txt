@@ -1,0 +1,3 @@
+Please paste the job description you want to tailor your CV for.
+
+You can also type `file` to use samples/job_description.txt.
