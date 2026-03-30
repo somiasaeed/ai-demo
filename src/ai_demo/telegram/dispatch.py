@@ -1,4 +1,4 @@
-"""Telegram multi-agent router: keyword → async handler (single place to extend agents)."""
+"""Telegram multi-agent router: keyword → async handler."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ import asyncio
 import logging
 import re
 
-from hub.agents.general_agent import GeneralAgent
-from hub.agents.recipe_creator import RecipeCreatorAgent
-from hub.agents.weather_agent import WeatherAgent
-from hub.services.cv_file_tailor import tailor_cv_from_samples_sync
+from ai_demo.agents.general import GeneralAgent
+from ai_demo.agents.recipe import RecipeCreatorAgent
+from ai_demo.agents.weather import WeatherAgent
+from ai_demo.services.cv_pipeline import tailor_cv_from_samples_sync
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,6 @@ def _strip_keyword(text: str, *keywords: str) -> str:
     for kw in keywords:
         s = re.sub(rf"\b{re.escape(kw)}\b", " ", s, flags=re.IGNORECASE)
     return re.sub(r"[\s,]+", " ", s).strip(" ,.?!")
-
 
 def _slash_arg(text: str, command: str) -> str | None:
     """Match /cmd or /cmd@BotName and return text after the command (multi-line safe)."""

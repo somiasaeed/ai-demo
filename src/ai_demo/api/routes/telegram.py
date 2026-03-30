@@ -5,16 +5,16 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Header, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from hub.config import get_hub_settings
-from hub.services.telegram_outbound import (
+from ai_demo.config import get_settings
+from ai_demo.services.telegram_outbound import (
     answer_callback_query,
     register_bot_commands,
     send_telegram_message,
 )
-from hub.telegram_dispatch import (
+from ai_demo.telegram.dispatch import (
     AGENT_INPUT_PROMPTS,
     KNOWN_AGENTS,
     TELEGRAM_HELP,
@@ -31,6 +31,7 @@ _user_states: dict[int, str] = {}  # chat_id -> "idle" | "awaiting_input:<agent>
 
 
 # ---------- state helpers ----------
+
 
 def _get_state(chat_id: int) -> str:
     return _user_states.get(chat_id, "idle")
@@ -63,6 +64,7 @@ _AGENT_SELECTION_TEXT = "Which agent would you like to use?"
 
 # ---------- background runner ----------
 
+
 async def _run_agent_background(token: str, chat_id: int, agent_name: str, text: str) -> None:
     """Run the agent in the background and send the result back to Telegram."""
     try:
@@ -82,14 +84,31 @@ async def _run_agent_background(token: str, chat_id: int, agent_name: str, text:
 
 # ---------- webhook ----------
 
+
 @router.post("/telegram")
-async def telegram_webhook(payload: dict = Body(...)) -> JSONResponse:
-    hub = get_hub_settings()
-    if not hub.telegram_bot_token:
+async def telegram_webhook(
+    payload: dict = Body(...),
+    x_telegram_bot_api_secret_token: str | None = Header(
+        default=None, alias="X-Telegram-Bot-Api-Secret-Token"
+    ),
+) -> JSONResponse:
+    settings = get_settings()
+
+    # Webhook secret verification (from server/)
+    if (
+        settings.telegram_webhook_secret
+        and x_telegram_bot_api_secret_token != settings.telegram_webhook_secret
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook secret",
+        )
+
+    if not settings.telegram_bot_token:
         logger.warning("TELEGRAM_BOT_TOKEN not set; webhook accepted but no reply sent")
         return JSONResponse({"ok": True})
 
-    token = hub.telegram_bot_token
+    token = settings.telegram_bot_token
 
     # --- Handle callback_query (inline button tap) ---
     callback = payload.get("callback_query")
@@ -160,8 +179,9 @@ async def telegram_webhook(payload: dict = Body(...)) -> JSONResponse:
 
 # ---------- register commands on startup ----------
 
+
 @router.on_event("startup")
 async def _on_startup() -> None:
-    hub = get_hub_settings()
-    if hub.telegram_bot_token:
-        await register_bot_commands(hub.telegram_bot_token)
+    settings = get_settings()
+    if settings.telegram_bot_token:
+        await register_bot_commands(settings.telegram_bot_token)
