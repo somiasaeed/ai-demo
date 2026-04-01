@@ -27,6 +27,18 @@
   <section>
     <label for="base">API origin</label>
     <input id="base" type="text" placeholder="http://127.0.0.1:8080" />
+    <label for="token" style="margin-top:0.5rem;">Access token</label>
+    <input id="token" type="password" placeholder="Paste JWT token from POST /auth/login" />
+    <button type="button" id="loginBtn" style="margin-left:0.5rem;">Login</button>
+  </section>
+
+  <section id="loginSection">
+    <h2 style="margin-top:0;font-size:1rem;">Login</h2>
+    <label>Username</label>
+    <input id="loginUser" type="text" placeholder="admin" />
+    <label>Password</label>
+    <input id="loginPass" type="password" />
+    <button type="button" id="doLogin">Login</button>
   </section>
 
   <section>
@@ -75,18 +87,22 @@
 
   <script>
     const baseEl = document.getElementById("base");
+    const tokenEl = document.getElementById("token");
     baseEl.value = window.location.origin;
 
-    async function post(path, body, outId) {
+    async function authdPost(path, body, outId) {
       const root = baseEl.value.replace(/\/$/, "");
       const out = document.getElementById(outId);
+      const token = tokenEl.value.trim();
+      if (!token) { out.textContent = "Error: no access token — login first"; return; }
       out.textContent = "…";
       try {
         const r = await fetch(root + path, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
           body: JSON.stringify(body),
         });
+        if (r.status === 401 || r.status === 403) { out.textContent = "Unauthorized — check your token"; return; }
         const t = await r.text();
         let j;
         try { j = JSON.parse(t); } catch { j = t; }
@@ -94,6 +110,31 @@
       } catch (e) {
         out.textContent = String(e);
       }
+    }
+
+    document.getElementById("doLogin").onclick = async () => {
+      const root = baseEl.value.replace(/\/$/, "");
+      const user = document.getElementById("loginUser").value;
+      const pass = document.getElementById("loginPass").value;
+      const body = new URLSearchParams({ username: user, password: pass });
+      try {
+        const r = await fetch(root + "/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body,
+        });
+        const data = await r.json();
+        if (data.access_token) {
+          tokenEl.value = data.access_token;
+          alert("Logged in — token set.");
+        } else {
+          alert("Login failed: " + (data.detail || JSON.stringify(data)));
+        }
+      } catch (e) { alert("Login error: " + e); }
+    };
+
+    async function post(path, body, outId) {
+      authdPost(path, body, outId);
     }
 
     document.querySelector('[data-action="cv-tailor"]').onclick = () =>

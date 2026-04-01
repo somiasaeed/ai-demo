@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Header, HTTPException, status
 from fastapi.responses import JSONResponse
 
 from hub.config import get_settings
@@ -92,8 +92,20 @@ async def _run_agent_background(token: str, chat_id: int, agent_name: str, text:
 # ---------- webhook ----------
 
 @router.post("/telegram")
-async def telegram_webhook(payload: dict = Body(...)) -> JSONResponse:
+async def telegram_webhook(
+    payload: dict = Body(...),
+    x_telegram_bot_api_secret_token: str | None = Header(default=None),
+) -> JSONResponse:
     settings = get_settings()
+
+    # Validate Telegram secret token when configured
+    if settings.telegram_webhook_secret:
+        if x_telegram_bot_api_secret_token != settings.telegram_webhook_secret:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Telegram webhook secret",
+            )
+
     if not settings.telegram_bot_token:
         logger.warning("TELEGRAM_BOT_TOKEN not set; webhook accepted but no reply sent")
         return JSONResponse({"ok": True})
