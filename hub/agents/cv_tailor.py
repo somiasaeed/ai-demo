@@ -4,7 +4,8 @@ import logging
 import os
 import re
 import textwrap
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
+from typing import Callable, Optional
 
 from hub.agents.base import BaseAgent, AgentConfig
 from hub.core.prompts import load_prompt
@@ -46,12 +47,19 @@ class CVTailorAgent(BaseAgent):
         job_desc_path: str,
         output_dir: str = "output",
         photo_path: Optional[str] = None,
+        progress_fn: Optional[Callable[[str], None]] = None,
     ) -> str:
+        def _notify(msg: str) -> None:
+            if progress_fn:
+                progress_fn(msg)
+
         version = self._next_version(output_dir)
         cv_out = f"{output_dir}/tailored_cv_v{version}.md"
         cl_out = f"{output_dir}/tailored_cover_letter_v{version}.md"
         cv_de_out = f"{output_dir}/tailored_cv_de_v{version}.md"
         cl_de_out = f"{output_dir}/tailored_cover_letter_de_v{version}.md"
+
+        _notify("Reading CV, cover letter and job description...")
 
         task_template = load_prompt("cv_tailor_task")
         prompt = task_template.format(
@@ -64,18 +72,27 @@ class CVTailorAgent(BaseAgent):
             cl_de_out=cl_de_out,
         )
 
+        _notify("Generating tailored CV and cover letter (EN + DE)...")
         result = self.run(prompt)
 
-        # Convert markdown outputs to PDF and Word
-        self._md_to_pdf(cv_out, cv_out.replace(".md", ".pdf"), photo_path=photo_path)
-        self._md_to_pdf(cl_out, cl_out.replace(".md", ".pdf"))
-        self._md_to_docx(cv_out, cv_out.replace(".md", ".docx"), photo_path=photo_path)
-        self._md_to_docx(cl_out, cl_out.replace(".md", ".docx"))
-        self._md_to_pdf(cv_de_out, cv_de_out.replace(".md", ".pdf"), photo_path=photo_path)
-        self._md_to_pdf(cl_de_out, cl_de_out.replace(".md", ".pdf"))
-        self._md_to_docx(cv_de_out, cv_de_out.replace(".md", ".docx"), photo_path=photo_path)
-        self._md_to_docx(cl_de_out, cl_de_out.replace(".md", ".docx"))
+        # Convert markdown outputs to PDF in parallel
+        _notify("Converting to PDF...")
+        conversions = [
+            (self._md_to_pdf, cv_out, cv_out.replace(".md", ".pdf"), photo_path),
+            (self._md_to_pdf, cl_out, cl_out.replace(".md", ".pdf"), None),
+            (self._md_to_pdf, cv_de_out, cv_de_out.replace(".md", ".pdf"), photo_path),
+            (self._md_to_pdf, cl_de_out, cl_de_out.replace(".md", ".pdf"), None),
+        ]
 
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [
+                pool.submit(fn, src, dst, photo_path=photo)
+                for fn, src, dst, photo in conversions
+            ]
+            for f in futures:
+                f.result()  # propagate exceptions
+
+        _notify("Files ready!")
         return result
 
     # ── MD → DOCX conversion ──────────────────────────────────────────

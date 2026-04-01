@@ -11,7 +11,13 @@
       "Bash(echo \"OK: $f\")",
       "Bash(done)",
       "Bash(pip list:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "Bash(docker build:*)",
+      "Bash(docker push:*)",
+      "Bash(python -c \"from hub.agents.prayer import PrayerAgent; print\\('PrayerAgent OK'\\)\")",
+      "Bash(python:*)",
+      "Bash(curl -s \"https://api.aladhan.com/v1/timings?latitude=52.52&longitude=13.41&method=2\")",
+      "Bash(curl:*)"
     ]
   }
 }

@@ -78,6 +78,14 @@
   </section>
 
   <section>
+    <h2 style="margin-top:0;font-size:1rem;">Prayer Times</h2>
+    <label>City</label>
+    <input id="prayerCity" type="text" placeholder="e.g. Berlin" />
+    <button type="button" data-action="prayer">POST /api/agents/prayer</button>
+    <div class="row"><pre id="outPrayer"></pre></div>
+  </section>
+
+  <section>
     <h2 style="margin-top:0;font-size:1rem;">General (Telegram default)</h2>
     <label>Message</label>
     <textarea id="genMsg" placeholder="Anything…"></textarea>
@@ -158,6 +166,9 @@
 
     document.querySelector('[data-action="recipe"]').onclick = () =>
       post("/api/agents/recipe", { prompt: document.getElementById("recipePrompt").value }, "outRecipe");
+
+    document.querySelector('[data-action="prayer"]').onclick = () =>
+      post("/api/agents/prayer", { query: document.getElementById("prayerCity").value }, "outPrayer");
 
     document.querySelector('[data-action="general"]').onclick = () =>
       post("/api/agents/general", { message: document.getElementById("genMsg").value }, "outGen");

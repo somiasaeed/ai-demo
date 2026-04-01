@@ -5,14 +5,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import typing
+from pathlib import Path
 
 from hub.agents.general import GeneralAgent
+from hub.agents.prayer import PrayerAgent
 from hub.agents.recipe import RecipeAgent
 from hub.agents.weather import WeatherAgent
 from hub.core.prompts import load_prompt
 from hub.services.cv_pipeline import tailor_cv_from_samples_sync
 
 logger = logging.getLogger(__name__)
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent.parent
 
 # ---------------------------------------------------------------------------
 # Helpers: slash-command parsing and keyword stripping
@@ -100,6 +107,7 @@ TELEGRAM_AGENT_RULES: list[tuple[str, re.Pattern[str]]] = [
         ),
     ),
     ("recipe", re.compile(r"/recipe|\brecipe\b|\bcook\b", re.IGNORECASE)),
+    ("prayer", re.compile(r"/prayer|\bprayer\b|\bsalah\b|\bnamaz\b|\btahajjud\b", re.IGNORECASE)),
 ]
 
 
@@ -114,25 +122,51 @@ def detect_telegram_agent(text: str) -> str:
 # Agent runners
 # ---------------------------------------------------------------------------
 
-async def run_telegram_agent(name: str, text: str) -> str:
+async def run_telegram_agent(
+    name: str,
+    text: str,
+    send_fn: typing.Callable[[int, str], typing.Any] | None = None,
+    chat_id: int = 0,
+) -> tuple[str, list[str]]:
+    """Run an agent and return (result_text, list_of_file_paths).
+
+    Non-CV agents return an empty file list.
+    """
     if name == "weather":
         query = _strip_keyword(text, "weather") or text
-        return await WeatherAgent().run(query, plain_text=True)
+        return await WeatherAgent().run(query, plain_text=True), []
 
     if name == "cv":
-        return await _run_cv_telegram(text)
+        return await _run_cv_telegram(text, send_fn=send_fn, chat_id=chat_id)
 
     if name == "recipe":
         prompt = _strip_keyword(text, "recipe", "cook")
-        return await RecipeAgent().run(prompt or text)
+        return await RecipeAgent().run(prompt or text), []
 
-    return await GeneralAgent().run(text)
+    if name == "prayer":
+        query = _strip_keyword(text, "prayer", "salah", "namaz") or text
+        return await PrayerAgent().run(query), []
+
+    return await GeneralAgent().run(text), []
 
 
-async def _run_cv_telegram(text: str) -> str:
+async def _run_cv_telegram(
+    text: str,
+    send_fn: typing.Callable[[int, str], typing.Any] | None = None,
+    chat_id: int = 0,
+) -> tuple[str, list[str]]:
     body = _extract_after_cv_trigger(text)
     if not body:
-        return load_prompt("telegram_cv_usage")
+        return load_prompt("telegram_cv_usage"), []
+
+    # Build a progress callback that sends Telegram updates
+    _loop = asyncio.get_event_loop()
+    def _progress(msg: str) -> None:
+        if send_fn and chat_id:
+            try:
+                asyncio.run_coroutine_threadsafe(send_fn(chat_id, msg), _loop)
+            except Exception:
+                pass
 
     if _cv_uses_sample_job_file(body):
         try:
@@ -140,9 +174,10 @@ async def _run_cv_telegram(text: str) -> str:
                 tailor_cv_from_samples_sync,
                 "",
                 True,
+                _progress,
             )
         except FileNotFoundError as e:
-            return f"Could not run CV tailor: {e}"
+            return f"Could not run CV tailor: {e}", []
         except Exception:
             logger.exception("CV tailor (sample job file) failed")
             raise
@@ -153,25 +188,30 @@ async def _run_cv_telegram(text: str) -> str:
                 tailor_cv_from_samples_sync,
                 job_file_text,
                 False,
+                _progress,
             )
         except FileNotFoundError as e:
-            return f"Could not run CV tailor: {e}"
+            return f"Could not run CV tailor: {e}", []
         except Exception:
             logger.exception("CV tailor failed")
             raise
 
+    # Collect generated PDF file paths for sending via Telegram
+    out_dir = _repo_root() / "output"
+    file_paths: list[str] = []
+    for prefix in ("tailored_cv", "tailored_cv_de", "tailored_cover_letter", "tailored_cover_letter_de"):
+        candidate = out_dir / f"{prefix}_v{version}.pdf"
+        if candidate.is_file():
+            file_paths.append(str(candidate))
+
     head = (
-        f"Your CV and cover letter have been tailored (version v{version}).\n"
-        f"Saved under output/:\n"
-        f"  tailored_cv_v{version}.md / .pdf / .docx\n"
-        f"  tailored_cover_letter_v{version}.md / .pdf / .docx\n"
-        f"(plus German *_de_* versions)\n\n"
+        f"Your CV and cover letter have been tailored (version v{version}).\n\n"
         f"Summary:\n"
     )
     rest = summary[: (4090 - len(head) - 20)]
     if len(summary) > len(rest):
         rest += "\n...(truncated)"
-    return head + rest
+    return head + rest, file_paths
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +247,7 @@ def _load_agent_status_messages() -> dict[str, str]:
 
 # Lazy-loaded constants (populated on first webhook call)
 TELEGRAM_HELP = ""
-KNOWN_AGENTS: list[str] = ["cv", "weather", "recipe", "general"]
+KNOWN_AGENTS: list[str] = ["cv", "weather", "recipe", "prayer", "general"]
 AGENT_INPUT_PROMPTS: dict[str, str] = {}
 AGENT_STATUS_MESSAGES: dict[str, str] = {}
 

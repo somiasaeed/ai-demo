@@ -64,6 +64,14 @@ app.include_router(rest_agents.router, prefix="/api")
 app.include_router(telegram_webhook.router)
 
 
+# ── Start prayer reminder scheduler on startup ───────────────────────────────
+
+@app.on_event("startup")
+async def _start_prayer_scheduler() -> None:
+    from hub.services.prayer_scheduler import start_prayer_scheduler
+    await start_prayer_scheduler()
+
+
 # ── Auth endpoints ───────────────────────────────────────────────────────────
 
 
@@ -89,6 +97,12 @@ async def login(form: OAuth2PasswordRequestForm = Depends()) -> dict:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+async def _start_prayer_scheduler() -> None:
+    from hub.services.prayer_scheduler import start_prayer_scheduler
+    await start_prayer_scheduler()
 
 
 @app.get("/")

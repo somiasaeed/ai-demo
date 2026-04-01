@@ -12,9 +12,11 @@ from hub.config import get_settings
 from hub.services.telegram_outbound import (
     answer_callback_query,
     register_bot_commands,
+    send_telegram_document,
     send_telegram_message,
 )
 from hub.telegram import dispatch as telegram_dispatch
+from hub.services.prayer_scheduler import register_user
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,9 @@ _AGENT_SELECTION_KEYBOARD = {
         ],
         [
             {"text": "Recipe", "callback_data": "agent:recipe"},
+            {"text": "Prayer Times", "callback_data": "agent:prayer"},
+        ],
+        [
             {"text": "General Chat", "callback_data": "agent:general"},
         ],
     ]
@@ -66,8 +71,54 @@ async def _run_agent_background(token: str, chat_id: int, agent_name: str, text:
     await send_telegram_message(token, chat_id, status_msg)
 
     try:
-        result = await telegram_dispatch.run_telegram_agent(agent_name, text)
-        await send_telegram_message(token, chat_id, result)
+        async def _send_progress(cid: int, msg: str) -> None:
+            await send_telegram_message(token, cid, msg)
+
+        result, file_paths = await asyncio.wait_for(
+            telegram_dispatch.run_telegram_agent(
+                agent_name, text, send_fn=_send_progress, chat_id=chat_id
+            ),
+            timeout=900,  # 15-minute timeout for CV agent (multiple tool calls)
+        )
+
+        # Send result text (split if too long)
+        try:
+            await send_telegram_message(token, chat_id, result)
+        except Exception:
+            logger.exception("Failed to send result message")
+            # Try sending a shorter fallback
+            try:
+                await send_telegram_message(
+                    token, chat_id, f"Done! {len(file_paths)} file(s) generated. Sending files..."
+                )
+            except Exception:
+                logger.exception("Failed to send fallback message")
+
+        # Send generated files as Telegram documents
+        sent, failed = 0, 0
+        for fpath in file_paths:
+            try:
+                await send_telegram_document(token, chat_id, fpath)
+                sent += 1
+            except Exception:
+                failed += 1
+                logger.exception("Failed to send file via Telegram: %s", fpath)
+
+        if file_paths:
+            await send_telegram_message(
+                token, chat_id,
+                f"Sent {sent} of {len(file_paths)} files." + (f" {failed} failed." if failed else ""),
+            )
+    except asyncio.TimeoutError:
+        logger.error("Agent %s timed out for chat_id=%s", agent_name, chat_id)
+        try:
+            await send_telegram_message(
+                token,
+                chat_id,
+                "Sorry, the request timed out. Please try again.",
+            )
+        except Exception:
+            logger.exception("Failed to send timeout message to Telegram")
     except Exception:
         logger.exception("Telegram pipeline failed")
         try:
@@ -125,6 +176,24 @@ async def telegram_webhook(
 
         if data.startswith("agent:") and chat_id:
             agent_name = data.split(":", 1)[1]
+
+            # Special handling for prayer agent: show location options
+            if agent_name == "prayer":
+                prayer_keyboard = {
+                    "inline_keyboard": [
+                        [
+                            {"text": "My Current Location", "callback_data": "prayer:location"},
+                            {"text": "Enter a City", "callback_data": "prayer:city"},
+                        ]
+                    ]
+                }
+                await send_telegram_message(
+                    token, chat_id,
+                    "How would you like to get prayer times?",
+                    reply_markup=prayer_keyboard,
+                )
+                return JSONResponse({"ok": True})
+
             if agent_name in telegram_dispatch.KNOWN_AGENTS:
                 _set_state(chat_id, f"awaiting_input:{agent_name}")
                 prompt = telegram_dispatch.AGENT_INPUT_PROMPTS.get(agent_name, "Please enter your input:")
@@ -132,6 +201,22 @@ async def telegram_webhook(
             else:
                 await send_telegram_message(
                     token, chat_id, "Unknown agent. Please try again."
+                )
+
+        # Handle prayer sub-options
+        if data.startswith("prayer:") and chat_id:
+            prayer_choice = data.split(":", 1)[1]
+            if prayer_choice == "location":
+                await send_telegram_message(
+                    token, chat_id,
+                    "Please share your location using the attachment button (paperclip icon). "
+                    "You'll get today's prayer times and be registered for daily reminders!",
+                )
+            elif prayer_choice == "city":
+                _set_state(chat_id, "awaiting_input:prayer")
+                await send_telegram_message(
+                    token, chat_id,
+                    "Which city would you like prayer times for? (e.g. Berlin, Istanbul, Karachi)",
                 )
         return JSONResponse({"ok": True})
 
@@ -145,6 +230,32 @@ async def telegram_webhook(
     text = (message.get("text") or "").strip()
 
     if chat_id is None:
+        return JSONResponse({"ok": True})
+
+    # --- Handle location message ---
+    location = message.get("location")
+    if location:
+        lat = location.get("latitude")
+        lng = location.get("longitude")
+        if lat is not None and lng is not None:
+            from hub.services.prayer_scheduler import register_user
+            register_user(chat_id, lat, lng)
+
+            from hub.agents.prayer import PrayerAgent
+            agent = PrayerAgent()
+            try:
+                result = await agent.run(lat=lat, lng=lng)
+            except Exception:
+                logger.exception("Prayer agent failed for location")
+                result = "Could not fetch prayer times. Please try again."
+            await send_telegram_message(
+                token, chat_id, result
+            )
+            await send_telegram_message(
+                token, chat_id,
+                "You are now registered for daily prayer reminders! "
+                "You will receive a notification at each prayer time.",
+            )
         return JSONResponse({"ok": True})
 
     # Deduplicate by message_id

@@ -30,6 +30,33 @@ async def send_telegram_message(
             raise
 
 
+async def send_telegram_document(
+    bot_token: str,
+    chat_id: int,
+    file_path: str,
+    caption: str = "",
+) -> None:
+    """POST sendDocument to upload a file to a Telegram chat."""
+    url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
+    from pathlib import Path
+
+    p = Path(file_path)
+    if not p.is_file():
+        logger.warning("File not found for Telegram upload: %s", file_path)
+        return
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        with open(file_path, "rb") as f:
+            files = {"document": (p.name, f)}
+            payload: dict[str, Any] = {"chat_id": chat_id}
+            if caption:
+                payload["caption"] = caption[:1024]
+            r = await client.post(url, data=payload, files=files)
+            try:
+                r.raise_for_status()
+            except httpx.HTTPStatusError:
+                logger.exception("Telegram sendDocument failed: %s", r.text)
+
+
 async def answer_callback_query(bot_token: str, callback_query_id: str, text: str = "") -> None:
     """Acknowledge a callback query (button tap) so the loading spinner stops."""
     url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
@@ -51,6 +78,7 @@ async def register_bot_commands(bot_token: str) -> None:
         {"command": "cvfile", "description": "Tailor CV using samples/job_description.txt"},
         {"command": "weather", "description": "Get weather for a city"},
         {"command": "recipe", "description": "Create a recipe from a prompt"},
+        {"command": "prayer", "description": "Get prayer times + Tahajjud for your location"},
         {"command": "help", "description": "Show available agents and commands"},
     ]
     url = f"https://api.telegram.org/bot{bot_token}/setMyCommands"

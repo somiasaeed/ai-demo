@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from hub.agents.cv_tailor_text import CVTailorTextAgent
 from hub.agents.general import GeneralAgent
+from hub.agents.prayer import PrayerAgent
 from hub.agents.recipe import RecipeAgent
 from hub.agents.weather import WeatherAgent
 from hub.core.security import require_admin
@@ -51,6 +52,15 @@ class RecipeRequest(BaseModel):
 
 class GeneralRequest(BaseModel):
     message: str = Field(..., min_length=1)
+
+
+class PrayerRequest(BaseModel):
+    query: str = Field(
+        default="",
+        description="City name (e.g. 'Berlin') or leave empty if using lat/lng",
+    )
+    lat: float | None = Field(default=None, description="Latitude")
+    lng: float | None = Field(default=None, description="Longitude")
 
 
 class AgentResponse(BaseModel):
@@ -132,3 +142,18 @@ async def general(
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
     return AgentResponse(agent="general", result=out)
+
+
+@router.post("/prayer", response_model=AgentResponse)
+async def prayer(
+    body: PrayerRequest,
+    _admin: dict = Depends(require_admin),
+) -> AgentResponse:
+    agent = PrayerAgent()
+    try:
+        out = await agent.run(
+            body.query, lat=body.lat, lng=body.lng
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    return AgentResponse(agent="prayer", result=out)

@@ -77,6 +77,7 @@ def _resolve_cv_and_cover(root: Path) -> tuple[Path, Path]:
 def tailor_cv_from_samples_sync(
     job_description: str = "",
     use_samples_job_file: bool = False,
+    progress_fn: typing.Callable[[str], None] | None = None,
 ) -> tuple[int, str]:
     """Run CVTailorAgent on samples/cv.pdf (+ cover PDF or MD) and job description.
 
@@ -122,5 +123,6 @@ def tailor_cv_from_samples_sync(
         job_desc_path=job_desc_path,
         output_dir=str(out.resolve()),
         photo_path=photo,
+        progress_fn=progress_fn,
     )
     return version, summary.strip()
