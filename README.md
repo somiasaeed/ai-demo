@@ -1,8 +1,8 @@
-<p align="center"><strong>AI Agent Hub</strong><br><span style="font-size:0.85em;">Multi-agent platform · REST API · Telegram bot · Self-hosted</span><br><br><a href="https://ai-demo-latest.onrender.com"><img src="https://img.shields.io/badge/Live-Demo-brightgreen?style=flat-square"/></a> &nbsp; <img src="https://img.shields.io/badge/Python-3.13-informational?style=flat-square"/> &nbsp; <img src="https://img.shields.io/badge/Docker-Private-blue?style=flat-square"/> &nbsp; <img src="https://img.shields.io/badge/License-MIT-success?style=flat-square"/></p>
+<p align="center"><strong>AI Agent Hub</strong><br><span style="font-size:0.85em;">Multi-agent platform · REST API · Telegram bot · Self-hosted</span><br><br><a href="https://ai-demo-latest.onrender.com"><img src="https://img.shields.io/badge/Live-ai--demo--latest.onrender.com-brightgreen?style=flat-square"/></a> &nbsp; <img src="https://img.shields.io/badge/Python-3.13-informational?style=flat-square"/> &nbsp; <img src="https://img.shields.io/badge/Docker-Private-blue?style=flat-square"/> &nbsp; <img src="https://img.shields.io/badge/License-MIT-success?style=flat-square"/></p>
 
 ---
 
-### → [Live Demo](https://ai-demo-latest.onrender.com)
+### → [https://ai-demo-latest.onrender.com](https://ai-demo-latest.onrender.com)
 
 ---
 
