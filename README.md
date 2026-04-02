@@ -1,241 +1,272 @@
-# AI Agent Demo
-
-Minimal example of an AI agent workflow using [Strands Agents](https://github.com/strands-agents/strands-agents-python) with any OpenAI-compatible API.
-
-## Project Structure
-
-```
-ai-demo/
-├── main.py              # CLI with subcommands (one per agent)
-├── settings.py          # Pydantic settings from .env
-├── agents/
-│   ├── base.py          # BaseAgent + prompt loader + callback handler
-│   ├── cv_tailorer.py   # CV tailoring agent
-│   └── summarizer.py    # Document summarizer agent
-├── tools/
-│   └── document.py      # @tool functions: read_pdf, read_file, write_file
-├── prompts/
-│   ├── cv_tailorer.txt  # System prompt for CV tailorer
-│   └── summarizer.txt   # System prompt for summarizer
-├── samples/
-│   ├── cv.pdf
-│   ├── cover_letter.pdf
-│   └── job_description.txt
-├── photos/              # Put your CV photo here (e.g. photo.jpg)
-├── pyproject.toml
-└── .env.example
-```
-
-## Key Patterns
-
-1. **Settings** (`settings.py`) — Pydantic `BaseSettings` loads `OPENAI_*` config from `.env`
-2. **Base Agent** (`agents/base.py`) — Abstract class wiring Strands Agent + LiteLLM, with reasoning model detection and activity logging
-3. **Prompts** (`prompts/*.txt`) — System prompts as plain text files, loaded by `load_prompt("name")`. Never hardcoded in Python
-4. **Tools** (`tools/document.py`) — `@tool`-decorated functions the agent calls autonomously
-5. **Concrete Agents** (`agents/*.py`) — Subclass with `get_tools()` and a convenience method
-6. **CLI Subcommands** (`main.py`) — Each agent gets its own subcommand
-
-## Quick Start
-
-```bash
-# 1. Install dependencies
-uv sync
-
-# 2. Configure your LLM API
-cp .env.example .env
-# Edit .env with your API key
-
-# 3. Run an agent
-uv run main.py cvtailor --cv samples/cv.pdf --cover-letter samples/cover_letter.pdf --job-desc samples/job_description.txt
-
-# Optional: add a photo to the CV (placed at top right of first page)
-# Put your photo in the photos/ folder, then:
-uv run main.py cvtailor --cv samples/cv.pdf --cover-letter samples/cover_letter.pdf --job-desc samples/job_description.txt --photo photos/photo.jpg
-
-# Or summarize a document
-uv run main.py summarize --file samples/cv.pdf
-```
-
-## Example Output
-
-```
-==================================================
-  CV & Cover Letter Tailorer
-==================================================
-  CV:           samples/cv.pdf
-  Cover Letter: samples/cover_letter.pdf
-  Job Desc:     samples/job_description.txt
-  Output:       output/ (v1)
-  Model:        glm-5 (reasoning)
-==================================================
-
-Agent workflow:
-  [  0.0s] Thinking...
-  [  2.1s] Step 1: Reading PDF
-           -> samples/cv.pdf
-  [  3.4s] Step 2: Reading PDF
-           -> samples/cover_letter.pdf
-  [  4.2s] Step 3: Reading file
-           -> samples/job_description.txt
-  [  8.7s] Step 4: Writing file
-           -> output/tailored_cv_v1.md
-  [ 12.3s] Step 5: Writing file
-           -> output/tailored_cover_letter_v1.md
-  [ 14.1s] Done (5 tool calls)
-
---------------------------------------------------
-Summary of changes:
---------------------------------------------------
-...
-
-Output saved to output/ (v1):
-  tailored_cv_v1.md  + .pdf
-  tailored_cover_letter_v1.md  + .pdf
-
-Completed in 14.1s
-```
-
-## Versioned Output
-
-Each run auto-increments the version number. Previous outputs are preserved:
-
-```
-output/
-├── tailored_cv_v1.md
-├── tailored_cv_v1.pdf
-├── tailored_cover_letter_v1.md
-├── tailored_cover_letter_v1.pdf
-├── tailored_cv_v2.md          # second run
-├── tailored_cv_v2.pdf
-└── ...
-```
-
-## Using a Different LLM
-
-Any OpenAI-compatible API works. Edit `.env`:
-
-```bash
-# OpenAI
-OPENAI_API_KEY=sk-...
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
-
-# Anthropic (via LiteLLM)
-OPENAI_API_KEY=sk-ant-...
-OPENAI_BASE_URL=https://api.anthropic.com
-OPENAI_MODEL=claude-sonnet-4-20250514
-
-# Local (Ollama)
-OPENAI_API_KEY=unused
-OPENAI_BASE_URL=http://localhost:11434/v1
-OPENAI_MODEL=llama3.1
-```
-
-Reasoning models (o1, o3, DeepSeek-R1, GLM, QwQ) are auto-detected — temperature is dropped and `max_completion_tokens` is used instead.
+<p align="center"><strong>AI Agent Hub</strong><br><span style="font-size:0.85em;">Multi-agent platform · REST API · Telegram bot · Self-hosted</span><br><br><a href="https://ai-demo-latest.onrender.com"><img src="https://img.shields.io/badge/Live-Demo-brightgreen?style=flat-square"/></a> &nbsp; <img src="https://img.shields.io/badge/Python-3.13-informational?style=flat-square"/> &nbsp; <img src="https://img.shields.io/badge/Docker-Private-blue?style=flat-square"/> &nbsp; <img src="https://img.shields.io/badge/License-MIT-success?style=flat-square"/></p>
 
 ---
 
-## Adding a New Agent
+### → [Live Demo](https://ai-demo-latest.onrender.com)
 
-Follow these 3 steps:
+---
 
-### Step 1: Create the prompt (`prompts/my_agent.txt`)
+A containerized FastAPI service that runs specialized AI agents behind a unified REST API and Telegram bot. Each agent handles a specific task — CV tailoring, weather lookups, recipe generation, prayer time scheduling — with its own tools, prompts, and output pipeline. Connects to any OpenAI-compatible LLM via LiteLLM.
 
-```text
-You are an expert at X.
+No managed services. No vendor lock-in. Your API key, your data, your server.
 
-## Workflow
-1. Use tool_a to do something
-2. Use tool_b to do something else
-3. Produce the result
+---
 
-## Rules
-- Rule one
-- Rule two
-```
+## What's included
 
-### Step 2: Create the agent (`agents/my_agent.py`)
+| Agent | Input | Output |
+|---|---|---|
+| **CV Tailor** | Your CV PDF + cover letter + job description | Tailored PDFs in English and German, sent via Telegram |
+| **Weather** | City name | Current temp, humidity, wind, conditions |
+| **Recipe** | Ingredients or prompt | Structured recipe with ingredients and steps |
+| **Prayer Times** | City name or Telegram location | 5 daily prayers + Tahajjud, with automatic reminder scheduling |
+| **General** | Free text | LLM chat response |
 
-```python
-from typing import Optional
+All accessible via REST API, Telegram bot, or the built-in web dashboard.
 
-from agents.base import BaseAgent, AgentConfig, load_prompt
-from settings import Settings
-from tools.document import read_file_tool, write_file_tool  # pick tools you need
+---
 
-
-class MyAgent(BaseAgent):
-    def __init__(self, settings: Optional[Settings] = None):
-        config = AgentConfig(
-            name="my_agent",
-            system_prompt=load_prompt("my_agent"),  # loads prompts/my_agent.txt
-            max_tokens=2048,
-        )
-        super().__init__(config, settings)
-
-    def get_tools(self) -> list:
-        """Return the tools this agent can call."""
-        return [read_file_tool, write_file_tool]
-
-    def do_work(self, input_path: str) -> str:
-        """Convenience method for this agent's task."""
-        return self.run(f"Process this file: {input_path}")
-```
-
-### Step 3: Add a subcommand in `main.py`
-
-```python
-def cmd_myagent(args: argparse.Namespace) -> None:
-    from agents.my_agent import MyAgent
-    agent = MyAgent()
-    result = agent.do_work(args.input)
-    print(result)
-
-# In main(), add to subparsers:
-my_parser = subparsers.add_parser("myagent", help="Description of what it does")
-my_parser.add_argument("--input", required=True, help="Input file")
-
-# And add to commands dict:
-commands = {
-    "cvtailor": cmd_cvtailor,
-    "summarize": cmd_summarize,
-    "myagent": cmd_myagent,
-}
-```
-
-### Adding a New Tool
-
-Tools are just functions decorated with `@tool`. Add to `tools/document.py` or create a new file in `tools/`:
-
-```python
-from strands import tool
-
-@tool
-def search_web_tool(query: str) -> str:
-    """Search the web for information.
-
-    Args:
-        query: Search query string.
-
-    Returns:
-        Search results as text.
-    """
-    # your implementation
-    return results
-```
-
-Then include it in your agent's `get_tools()` list.
-
-### Architecture Overview
+## How it works
 
 ```
-main.py (CLI)
-  └── subcommand selects agent
-        └── Agent (agents/*.py)
-              ├── system_prompt loaded from prompts/*.txt
-              ├── tools from tools/*.py
-              └── BaseAgent (agents/base.py)
-                    ├── LiteLLM model (any OpenAI-compatible API)
-                    ├── Reasoning model auto-detection
-                    └── Activity logging via callback handler
+  Telegram webhook          Web dashboard          REST API
+        │                        │                     │
+        └────────────────────────┼─────────────────────┘
+                                 │
+                            FastAPI router
+                                 │
+                         Agent dispatch layer
+                          ╱      │      ╲      ╲
+                     CV Tailor  Weather  Recipe  Prayer  General
+                         │                        │
+                    Tool calls              Aladhan API
+                  (read_pdf,                      │
+                   write_file)             Background scheduler
+                         │                (checks every 30s, sends
+                   Strands Agent           reminders at each
+                         │                prayer time)
+                   LiteLLM → your LLM
 ```
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/somia295/ai-demo.git && cd ai-demo
+uv sync
+cp .env.example .env   # fill in your API key
+uv run uvicorn hub.main:app --port 8080
+```
+
+Open `http://localhost:8080`. Login with the credentials you generated (see below).
+
+### Generate auth credentials
+
+```bash
+python -m hub.core.security
+```
+
+This prints a `JWT_SECRET` and `ADMIN_PASSWORD_HASH` — put both in your `.env`.
+
+---
+
+## Deploy to production
+
+The Dockerfile is multi-stage and produces a ~235MB image. Tested on [Render](https://render.com).
+
+### Docker
+
+```bash
+docker build -t ai-demo .
+docker run -p 8080:8080 --env-file .env ai-demo
+```
+
+### Render (with private Docker image)
+
+1. Push image to Docker Hub:
+   ```bash
+   docker build -t yourname/ai-demo:latest .
+   docker push yourname/ai-demo:latest
+   ```
+
+2. Make the repo private on Docker Hub → Settings → Visibility → Private
+
+3. On Render, create a **Web Service** → **Deploy an existing image**:
+   - Image: `docker.io/yourname/ai-demo:latest`
+   - Port: `8080`
+   - Add Docker Hub credentials under Settings → Registry Credentials (use a Personal Access Token, not your password)
+
+4. Set environment variables (see below)
+
+5. Register the Telegram webhook:
+   ```bash
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://your-app.onrender.com/webhook/telegram"
+   ```
+
+---
+
+## Configuration
+
+All config is through environment variables (or `.env` for local dev).
+
+**Required:**
+
+| Variable | Description |
+|---|---|
+| `OPENAI_API_KEY` | Any OpenAI-compatible API key |
+| `JWT_SECRET` | Token signing key (generate with `python -m hub.core.security`) |
+| `ADMIN_PASSWORD_HASH` | Bcrypt hash (generate with `python -m hub.core.security`) |
+
+**Optional:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | LLM API endpoint |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Model identifier |
+| `OPENAI_TEMPERATURE` | `0.7` | Sampling temperature |
+| `OPENAI_MAX_TOKENS` | `4096` | Max response tokens |
+| `ADMIN_USERNAME` | `admin` | Dashboard username |
+| `TELEGRAM_BOT_TOKEN` | — | From @BotFather. Enables Telegram bot |
+
+### LLM compatibility
+
+Works with anything that speaks the OpenAI chat completions format:
+
+- **OpenAI** — `gpt-4o-mini`, `gpt-4o`, etc.
+- **Local** — Ollama, vLLM, LM Studio
+- **Other providers** — Groq, Together, DeepSeek, any OpenAI-compatible endpoint
+
+Reasoning models (o1, o3, DeepSeek-R1, QwQ, GLM) are auto-detected — `temperature` is dropped and `max_completion_tokens` is used.
+
+---
+
+## API reference
+
+All endpoints require JWT authentication. Get a token first:
+
+```bash
+TOKEN=$(curl -s -X POST https://ai-demo-latest.onrender.com/auth/login \
+  -d "username=admin&password=yourpassword" | jq -r .access_token)
+```
+
+Then call any agent:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"query": "Berlin"}' \
+     https://ai-demo-latest.onrender.com/api/agents/weather
+```
+
+### Endpoints
+
+| Method | Path | Body |
+|---|---|---|
+| `POST` | `/auth/login` | `username`, `password` (form-encoded) |
+| `POST` | `/api/agents/cv-tailor` | `{"cv_text": "...", "job_description": "..."}` |
+| `POST` | `/api/agents/cv-tailor-files` | `{"job_description": "...", "use_sample_job_file": true}` |
+| `POST` | `/api/agents/weather` | `{"query": "Berlin"}` |
+| `POST` | `/api/agents/recipe` | `{"prompt": "vegetarian pasta"}` |
+| `POST` | `/api/agents/prayer` | `{"query": "Berlin"}` or `{"lat": 52.52, "lng": 13.41}` |
+| `POST` | `/api/agents/general` | `{"message": "hello"}` |
+| `POST` | `/webhook/telegram` | Telegram Bot API payload |
+
+---
+
+## Telegram bot
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `/cv <job text>` | Tailor CV for a job description |
+| `/cvfile` | Tailor CV using `samples/job_description.txt` |
+| `/weather <city>` | Current weather |
+| `/recipe <prompt>` | Generate a recipe |
+| `/prayer <city>` | Show today's prayer times |
+| `/help` | List all commands |
+
+### Conversation flow
+
+The bot uses inline keyboards for agent selection. When you send a message, it presents buttons to pick an agent, then asks for input. For Prayer Times, it offers two options: share your location (enables daily reminders) or type a city name.
+
+### Prayer reminders
+
+Once you share your location:
+- Timings are fetched from [Aladhan API](https://aladhan.com/prayer-times-api) (free, no key)
+- A background scheduler (asyncio, checks every 30s) sends a Telegram message at each prayer time
+- Tahajjud time is calculated as the last third of the night (Isha → Fajr)
+
+---
+
+## Project layout
+
+```
+hub/
+├── main.py                          # App factory, startup events
+├── config.py                        # Pydantic BaseSettings
+├── agents/
+│   ├── base.py                      # Strands Agent + LiteLLM + reasoning detection
+│   ├── cv_tailor.py                 # PDF/DOCX output, parallel conversions
+│   ├── cv_tailor_text.py            # Text-only variant for REST
+│   ├── weather.py                   # Open-Meteo geocoding + forecast
+│   ├── recipe.py                    # LLM recipe generation
+│   ├── prayer.py                    # Aladhan timings + Tahajjud math
+│   └── general.py                   # Fallback LLM chat
+├── core/
+│   ├── llm.py                       # chat_completion() async helper
+│   ├── prompts.py                   # load_prompt() from .txt files
+│   ├── security.py                  # JWT issue/verify, bcrypt
+│   └── tools.py                     # read_pdf, read_file, write_file
+├── routers/
+│   ├── rest_agents.py               # Agent HTTP endpoints
+│   └── telegram_webhook.py          # Webhook + conversation state
+├── services/
+│   ├── cv_pipeline.py               # End-to-end CV pipeline
+│   ├── prayer_scheduler.py          # Background prayer reminder loop
+│   └── telegram_outbound.py         # Bot API: sendMessage, sendDocument
+├── telegram/
+│   └── dispatch.py                  # Regex agent detection + routing
+├── prompts/                         # All prompts as .txt files
+└── static/
+    └── index.html                   # Dashboard SPA
+```
+
+---
+
+## Adding an agent
+
+1. **Agent class** — `hub/agents/my_agent.py`
+   ```python
+   class MyAgent:
+       async def run(self, query: str) -> str:
+           return result
+   ```
+
+2. **Prompt file** — `hub/prompts/telegram_agent_my_agent.txt`
+
+3. **Wire it up** in these files:
+
+   | File | Change |
+   |---|---|
+   | `telegram/dispatch.py` | Add to `KNOWN_AGENTS`, `TELEGRAM_AGENT_RULES`, `run_telegram_agent()` |
+   | `routers/rest_agents.py` | Add request model + `@router.post()` |
+   | `services/telegram_outbound.py` | Add command to `register_bot_commands()` |
+   | `routers/telegram_webhook.py` | Add button to keyboard |
+   | `static/index.html` | Add section + JS handler |
+
+No framework changes needed. Follow the existing pattern.
+
+---
+
+## Stack
+
+**Backend:** Python 3.13 · FastAPI · Strands Agents · LiteLLM · httpx
+**Output:** PyMuPDF · python-docx
+**Infra:** Docker (multi-stage) · Render
+**APIs:** Open-Meteo · Aladhan · Telegram Bot API
+
+---
+
+MIT License
