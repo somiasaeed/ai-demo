@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import OrderedDict
 
 from fastapi import APIRouter, Body, Header, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -11,20 +12,32 @@ from fastapi.responses import JSONResponse
 from hub.config import get_settings
 from hub.services.telegram_outbound import (
     answer_callback_query,
-    register_bot_commands,
     send_telegram_document,
     send_telegram_message,
 )
 from hub.telegram import dispatch as telegram_dispatch
-from hub.services.prayer_scheduler import register_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhook", tags=["telegram"])
 
-# Deduplicate retries and track conversation state per chat.
-_processed_message_ids: set[int] = set()
+# Deduplicate Telegram retries and track conversation state per chat.
+# Bounded LRU so the seen-id set can't grow without limit over the process life.
+_MAX_RECENT_MESSAGE_IDS = 2048
+_processed_message_ids: OrderedDict[int, None] = OrderedDict()
+
 _user_states: dict[int, str] = {}  # chat_id -> "idle" | "awaiting_input:<agent>"
+
+
+def _mark_message_seen(message_id: int) -> bool:
+    """Record a message_id. Return True if new, False if it was a retry/duplicate."""
+    if message_id in _processed_message_ids:
+        _processed_message_ids.move_to_end(message_id)
+        return False
+    _processed_message_ids[message_id] = None
+    if len(_processed_message_ids) > _MAX_RECENT_MESSAGE_IDS:
+        _processed_message_ids.popitem(last=False)
+    return True
 
 
 # ---------- state helpers ----------
@@ -258,13 +271,11 @@ async def telegram_webhook(
             )
         return JSONResponse({"ok": True})
 
-    # Deduplicate by message_id
+    # Deduplicate by message_id (Telegram retries on slow 200s)
     message_id = message.get("message_id")
-    if message_id is not None:
-        if message_id in _processed_message_ids:
-            logger.debug("Skipping duplicate message_id=%s", message_id)
-            return JSONResponse({"ok": True})
-        _processed_message_ids.add(message_id)
+    if message_id is not None and not _mark_message_seen(message_id):
+        logger.debug("Skipping duplicate message_id=%s", message_id)
+        return JSONResponse({"ok": True})
 
     if not text or text in ("/start", "/help"):
         await send_telegram_message(token, chat_id, telegram_dispatch.TELEGRAM_HELP)
@@ -286,12 +297,3 @@ async def telegram_webhook(
         )
 
     return JSONResponse({"ok": True})
-
-
-# ---------- register commands on startup ----------
-
-@router.on_event("startup")
-async def _on_startup() -> None:
-    settings = get_settings()
-    if settings.telegram_bot_token:
-        await register_bot_commands(settings.telegram_bot_token)

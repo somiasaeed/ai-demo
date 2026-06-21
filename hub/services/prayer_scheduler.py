@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from hub.agents.prayer import PrayerAgent
 from hub.config import get_settings
@@ -84,19 +85,26 @@ async def _scheduler_loop() -> None:
                 # Refresh timings once per day
                 user_cache = cache.get(chat_id, {})
                 if user_cache.get("date") != today_str:
-                    timings = await agent.get_timings(lat, lng)
-                    if timings:
-                        cache[chat_id] = {"date": today_str, "timings": timings}
+                    block = await agent.get_timings(lat, lng)
+                    if block:
+                        cache[chat_id] = {"date": today_str, "block": block}
                         _sent_today.pop(chat_id, None)
                     else:
                         continue
 
-                timings = cache[chat_id]["timings"]
+                block = cache[chat_id]["block"]
+                timings = block.get("timings", {})
                 sent_set = _sent_today.setdefault(chat_id, set())
 
-                # Get local time from API timezone offset
-                tz_offset = _get_utc_offset(timings)
-                local_now = now + timedelta(hours=tz_offset)
+                # Local time at the prayer location. Aladhan returns an IANA
+                # timezone name in meta.timezone (e.g. "Europe/Berlin"); the
+                # prayer times themselves are local to that zone.
+                tz_name = (block.get("meta") or {}).get("timezone") or "UTC"
+                try:
+                    local_now = datetime.now(ZoneInfo(tz_name))
+                except Exception:
+                    logger.warning("Unknown timezone %r; falling back to UTC", tz_name)
+                    local_now = now
                 current_time = local_now.strftime("%H:%M")
 
                 # Check each prayer
@@ -155,15 +163,3 @@ def _is_time_match(current: str, target: str) -> bool:
         return c_h == t_h and abs(c_m - t_m) <= 1
     except (ValueError, IndexError):
         return False
-
-
-def _get_utc_offset(timings: dict) -> float:
-    """Extract UTC offset from Aladhan timezone string like 'Asia/Karachi (+05:00)'."""
-    import re as _re
-
-    tz_str = timings.get("timezone", "")
-    m = _re.search(r"\(([+-])(\d{2}):(\d{2})\)", tz_str)
-    if m:
-        sign = 1 if m.group(1) == "+" else -1
-        return sign * (int(m.group(2)) + int(m.group(3)) / 60)
-    return 0.0

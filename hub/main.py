@@ -1,6 +1,7 @@
 """AI Agent Hub — run: `uvicorn hub.main:app --host 127.0.0.1 --port 80`"""
 
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -43,10 +44,31 @@ _STATIC = Path(__file__).resolve().parent / "static"
 # ── Conditionally disable /docs and /redoc based on PRODUCTION flag ──────────
 _settings = get_settings()
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Startup: launch the prayer-reminder scheduler and register Telegram commands."""
+    from hub.services.prayer_scheduler import start_prayer_scheduler
+
+    await start_prayer_scheduler()
+
+    settings = get_settings()
+    if settings.telegram_bot_token:
+        try:
+            from hub.services.telegram_outbound import register_bot_commands
+
+            await register_bot_commands(settings.telegram_bot_token)
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "Failed to register Telegram bot commands at startup"
+            )
+    yield
+
+
 app = FastAPI(
     title="AI Agent Hub",
     description="CV Tailor, Weather, Recipe Creator, General agent + Telegram webhook.",
     version="1.0.0",
+    lifespan=lifespan,
     docs_url=None if _settings.production else "/docs",
     redoc_url=None if _settings.production else "/redoc",
     openapi_url=None if _settings.production else "/openapi.json",
@@ -62,14 +84,6 @@ app.add_middleware(
 
 app.include_router(rest_agents.router, prefix="/api")
 app.include_router(telegram_webhook.router)
-
-
-# ── Start prayer reminder scheduler on startup ───────────────────────────────
-
-@app.on_event("startup")
-async def _start_prayer_scheduler() -> None:
-    from hub.services.prayer_scheduler import start_prayer_scheduler
-    await start_prayer_scheduler()
 
 
 # ── Auth endpoints ───────────────────────────────────────────────────────────
@@ -97,12 +111,6 @@ async def login(form: OAuth2PasswordRequestForm = Depends()) -> dict:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@app.on_event("startup")
-async def _start_prayer_scheduler() -> None:
-    from hub.services.prayer_scheduler import start_prayer_scheduler
-    await start_prayer_scheduler()
 
 
 @app.get("/")

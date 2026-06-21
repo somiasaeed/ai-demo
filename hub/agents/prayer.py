@@ -31,7 +31,11 @@ class PrayerAgent:
         return await self._by_city(q)
 
     async def get_timings(self, lat: float, lng: float) -> dict | None:
-        """Raw timings dict from Aladhan (used by scheduler)."""
+        """Full Aladhan ``data`` block (timings + date + meta) for a location.
+
+        ``meta.timezone`` is an IANA name (e.g. "Europe/Berlin") and is needed by
+        the scheduler to compute local time. Returns None on failure.
+        """
         try:
             today = date.today().strftime("%d-%m-%Y")
             async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
@@ -46,9 +50,10 @@ class PrayerAgent:
                 logger.info("Aladhan response status: %s", r.status_code)
                 r.raise_for_status()
                 data = r.json()
-            timings = data.get("data", {}).get("timings", {})
+            block = data.get("data") or {}
+            timings = block.get("timings") or {}
             logger.info("Aladhan timings keys: %s", list(timings.keys())[:6])
-            return timings
+            return block or None
         except Exception:
             logger.exception("Aladhan API call failed for lat=%s lng=%s", lat, lng)
             return None
@@ -57,13 +62,15 @@ class PrayerAgent:
         lat, lng, resolved = await self._geocode(city)
         if lat is None:
             return f'Could not find "{city}". Try a larger city name.'
-        timings = await self.get_timings(lat, lng)
+        block = await self.get_timings(lat, lng)
+        timings = (block or {}).get("timings", {})
         if not timings:
             return "Could not fetch prayer times. Please try again later."
         return self._format(timings, resolved)
 
     async def _by_coords(self, lat: float, lng: float) -> str:
-        timings = await self.get_timings(lat, lng)
+        block = await self.get_timings(lat, lng)
+        timings = (block or {}).get("timings", {})
         if not timings:
             return "Could not fetch prayer times. Please try again later."
         return self._format(timings, f"{lat:.2f}, {lng:.2f}")

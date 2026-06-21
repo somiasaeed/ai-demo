@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -77,7 +78,7 @@ def _resolve_cv_and_cover(root: Path) -> tuple[Path, Path]:
 def tailor_cv_from_samples_sync(
     job_description: str = "",
     use_samples_job_file: bool = False,
-    progress_fn: typing.Callable[[str], None] | None = None,
+    progress_fn: Callable[[str], None] | None = None,
 ) -> tuple[int, str]:
     """Run CVTailorAgent on samples/cv.pdf (+ cover PDF or MD) and job description.
 

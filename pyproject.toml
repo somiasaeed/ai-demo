@@ -1,7 +1,7 @@
 [project]
 name = "ai-demo"
 version = "1.0.0"
-description = "Multi-agent AI demo: CV Tailor, Weather, Recipe, Summarizer, Job Search + Telegram bot"
+description = "Multi-agent AI hub: CV Tailor, Weather, Recipe, Prayer Times, General + Telegram bot"
 requires-python = ">=3.13"
 dependencies = [
     "strands-agents[litellm]>=1.30.0",
@@ -15,6 +15,8 @@ dependencies = [
     "httpx>=0.27.0",
     "PyJWT>=2.10.0",
     "bcrypt>=4.2.0",
+    # zoneinfo timezone DB for Windows + python:*-slim images (prayer scheduler)
+    "tzdata>=2024.2",
 ]
 
 [project.scripts]
