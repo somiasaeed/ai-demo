@@ -1,0 +1,11 @@
+# Files executed/parsed on Linux servers must keep LF line endings (no CRLF).
+*.sh       text eol=lf
+Caddyfile  text eol=lf
+Dockerfile text eol=lf
+
+# Generated artifacts are binary — never normalize.
+*.pdf  binary
+*.docx binary
+*.png  binary
+*.jpg  binary
+*.JPG  binary

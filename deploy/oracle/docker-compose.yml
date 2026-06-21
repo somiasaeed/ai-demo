@@ -1,0 +1,62 @@
+# Production stack for Oracle Cloud Always-Free (Ampere A1, ARM).
+# Run from this folder:  docker compose up -d --build
+#
+#   app    -> your Agent Hub. No published port — reachable only via Caddy.
+#   caddy  -> auto-HTTPS (Let's Encrypt) reverse proxy on :80 / :443.
+#   duckdns-> (opt-in via --profile duckdns) keeps your free hostname pointed here.
+#
+# Secrets (OPENAI_API_KEY, JWT_SECRET, ...) live in the repo-root .env.
+# Deploy vars (DOMAIN, DUCKDNS_*) live in ./deploy/oracle/.env.
+#
+# Why no mem_limit? The CV agent builds 4 PDFs in parallel and the lever for
+# "more RAM" is the VM SHAPE (Ampere A1, up to 24 GB free), not a cgroup cap.
+# Leaving it uncapped lets the container use whatever the VM has.
+
+services:
+  app:
+    build: ../..
+    container_name: ai-agent-hub
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      - PRODUCTION=true
+    volumes:
+      # Generated CV PDFs/DOCX/MD persist on the host and survive image rebuilds.
+      - ../../output:/app/output
+    networks: [hubnet]
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    networks: [hubnet]
+
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: duckdns
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-Etc/UTC}
+      - SUBDOMAINS=${DUCKDNS_SUBDOMAIN}
+      - TOKEN=${DUCKDNS_TOKEN}
+      - LOG_LEVEL=info
+    profiles: ["duckdns"]   # opt-in: `docker compose --profile duckdns up -d`
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  hubnet:

@@ -1,0 +1,12 @@
+{
+	# Reduce attack surface on a public-facing box.
+	admin off
+}
+
+# Caddy reads $DOMAIN (e.g. aihub.duckdns.org) and auto-provisions a
+# Let's Encrypt cert for it. Telegram REQUIRES https — a bare http://<ip>
+# webhook will be rejected, so this layer is mandatory.
+{$DOMAIN} {
+	reverse_proxy app:8080
+	encode gzip
+}
