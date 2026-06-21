@@ -115,8 +115,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd ~/ai-demo/deploy/oracle
-            docker compose --profile duckdns pull
-            docker compose --profile duckdns up -d
+            docker compose pull
+            docker compose up -d
 
       - name: Health check
         run: |
