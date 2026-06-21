@@ -1,5 +1,10 @@
-"""CV Tailor — file-based agent (Strands, reads/writes PDF/DOCX)."""
+"""CV Tailor — reads CV/cover/job, tailors via the configured LLM, writes PDF/DOCX.
 
+Uses the simple chat_completion() helper (not Strands tool-calling) so it works
+with any OpenAI-compatible model — including ones that don't support function calls.
+"""
+
+import asyncio
 import logging
 import os
 import re
@@ -7,26 +12,77 @@ import textwrap
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Optional
 
-from hub.agents.base import BaseAgent, AgentConfig
+from hub.core.llm import chat_completion
 from hub.core.prompts import load_prompt
-from hub.core.tools import read_pdf_tool, read_file_tool, write_file_tool
 
 logger = logging.getLogger(__name__)
 
 
-class CVTailorAgent(BaseAgent):
-    """Agent that tailors CV and cover letter to a job description."""
+class CVTailorAgent:
+    """Tailors CV and cover letter to a job description using the configured LLM."""
 
     def __init__(self, settings=None):
-        config = AgentConfig(
-            name="cv_tailor",
-            system_prompt=load_prompt("cv_tailor"),
-            max_tokens=4096,
-        )
-        super().__init__(config, settings)
+        # `settings` kept for call-site compatibility; the LLM is configured via hub.config
+        self.system = load_prompt("cv_tailor")
 
-    def get_tools(self):
-        return [read_pdf_tool, read_file_tool, write_file_tool]
+    # ── reading source files (no Strands tools) ───────────────────────
+
+    @staticmethod
+    def _read_text_file(path: str) -> str:
+        for enc in ("utf-8", "utf-8-sig", "cp1252", "latin-1"):
+            try:
+                with open(path, encoding=enc) as f:
+                    return f.read()
+            except UnicodeDecodeError:
+                continue
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return f.read()
+
+    @staticmethod
+    def _read_pdf(path: str) -> str:
+        import pymupdf
+
+        doc = pymupdf.open(path)
+        pages = [page.get_text() for page in doc]
+        doc.close()
+        return "\n\n".join(pages)
+
+    @staticmethod
+    def _read_source(path: str) -> str:
+        if str(path).lower().endswith(".pdf"):
+            return CVTailorAgent._read_pdf(path)
+        return CVTailorAgent._read_text_file(path)
+
+    @staticmethod
+    def _clean(md: str) -> str:
+        """Strip a surrounding ```markdown ... ``` fence if the model added one."""
+        s = (md or "").strip()
+        if s.startswith("```"):
+            lines = s.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            s = "\n".join(lines).strip()
+        return s
+
+    async def _generate(self, cv_text: str, cover_text: str, job_text: str) -> dict:
+        src = (
+            f"=== CURRENT CV ===\n{cv_text}\n\n"
+            f"=== CURRENT COVER LETTER ===\n{cover_text}\n\n"
+            f"=== JOB DESCRIPTION ===\n{job_text}\n"
+        )
+        specs = {
+            "en_cv": "Produce the tailored ENGLISH version of the candidate's CV as clean markdown. Follow the CV Formatting rules strictly. Output ONLY the CV markdown — no preamble, no code fences.",
+            "en_cover": "Produce the tailored ENGLISH cover letter for this role as clean markdown. Output ONLY the letter — no preamble.",
+            "de_cv": "Produce the tailored GERMAN (Deutsch) CV as clean markdown, professionally adapted for the German job market. Keep all factual details accurate. Output ONLY the German CV markdown.",
+            "de_cover": "Produce the tailored GERMAN (Deutsch) cover letter as clean markdown. Output ONLY the German letter.",
+        }
+
+        async def one(key: str, task: str):
+            return key, self._clean(await chat_completion(self.system, src + "\n" + task))
+
+        return dict(await asyncio.gather(*(one(k, t) for k, t in specs.items())))
 
     @staticmethod
     def _next_version(output_dir: str) -> int:
@@ -60,20 +116,22 @@ class CVTailorAgent(BaseAgent):
         cl_de_out = f"{output_dir}/tailored_cover_letter_de_v{version}.md"
 
         _notify("Reading CV, cover letter and job description...")
-
-        task_template = load_prompt("cv_tailor_task")
-        prompt = task_template.format(
-            cv_path=cv_path,
-            cover_letter_path=cover_letter_path,
-            job_desc_path=job_desc_path,
-            cv_out=cv_out,
-            cl_out=cl_out,
-            cv_de_out=cv_de_out,
-            cl_de_out=cl_de_out,
-        )
+        cv_text = self._read_source(cv_path)
+        cover_text = self._read_source(cover_letter_path)
+        job_text = self._read_text_file(job_desc_path)
 
         _notify("Generating tailored CV and cover letter (EN + DE)...")
-        result = self.run(prompt)
+        out = asyncio.run(self._generate(cv_text, cover_text, job_text))
+
+        for path, key in (
+            (cv_out, "en_cv"),
+            (cl_out, "en_cover"),
+            (cv_de_out, "de_cv"),
+            (cl_de_out, "de_cover"),
+        ):
+            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(out.get(key, "").strip() + "\n")
 
         # Convert markdown outputs to PDF in parallel
         _notify("Converting to PDF...")
@@ -93,7 +151,10 @@ class CVTailorAgent(BaseAgent):
                 f.result()  # propagate exceptions
 
         _notify("Files ready!")
-        return result
+        return (
+            "Tailored your CV and cover letter to the job description (English + German) "
+            "and saved them as PDF under output/."
+        )
 
     # ── MD → DOCX conversion ──────────────────────────────────────────
 
