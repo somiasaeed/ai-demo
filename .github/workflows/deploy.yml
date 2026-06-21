@@ -51,6 +51,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Write env files from secrets
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -100,11 +102,13 @@ jobs:
           chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -H ${{ secrets.ORACLE_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Upload env files
+      - name: Sync deploy files + env to server
         run: |
           ssh -i ~/.ssh/id_deploy ubuntu@${{ secrets.ORACLE_HOST }} 'mkdir -p ~/ai-demo/deploy/oracle ~/ai-demo/samples ~/ai-demo/photos ~/ai-demo/output'
-          scp -i ~/.ssh/id_deploy out/app.env   ubuntu@${{ secrets.ORACLE_HOST }}:~/ai-demo/.env
-          scp -i ~/.ssh/id_deploy out/deploy.env ubuntu@${{ secrets.ORACLE_HOST }}:~/ai-demo/deploy/oracle/.env
+          scp -i ~/.ssh/id_deploy deploy/oracle/docker-compose.yml ubuntu@${{ secrets.ORACLE_HOST }}:~/ai-demo/deploy/oracle/docker-compose.yml
+          scp -i ~/.ssh/id_deploy deploy/oracle/Caddyfile          ubuntu@${{ secrets.ORACLE_HOST }}:~/ai-demo/deploy/oracle/Caddyfile
+          scp -i ~/.ssh/id_deploy out/app.env                       ubuntu@${{ secrets.ORACLE_HOST }}:~/ai-demo/.env
+          scp -i ~/.ssh/id_deploy out/deploy.env                    ubuntu@${{ secrets.ORACLE_HOST }}:~/ai-demo/deploy/oracle/.env
           ssh -i ~/.ssh/id_deploy ubuntu@${{ secrets.ORACLE_HOST }} 'chmod 600 ~/ai-demo/.env ~/ai-demo/deploy/oracle/.env'
 
       - name: Pull & restart
