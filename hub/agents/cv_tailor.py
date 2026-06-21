@@ -79,10 +79,12 @@ class CVTailorAgent:
             "de_cover": "Produce the tailored GERMAN (Deutsch) cover letter as clean markdown. Output ONLY the German letter.",
         }
 
-        async def one(key: str, task: str):
-            return key, self._clean(await chat_completion(self.system, src + "\n" + task))
-
-        return dict(await asyncio.gather(*(one(k, t) for k, t in specs.items())))
+        # Sequential (not parallel): concurrent connections to the LLM endpoint
+        # get dropped by the cloud/provider; one-at-a-time is reliable.
+        result = {}
+        for key, task in specs.items():
+            result[key] = self._clean(await chat_completion(self.system, src + "\n" + task))
+        return result
 
     @staticmethod
     def _next_version(output_dir: str) -> int:

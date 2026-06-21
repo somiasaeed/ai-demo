@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -32,6 +33,27 @@ def _build_payload(settings: Settings, system: str, user: str) -> dict[str, Any]
     return base
 
 
+# Transient network errors worth retrying (cloud/z.ai connection drops, esp. under load).
+_RETRYABLE = (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ReadError)
+
+
+async def _post_with_retry(url: str, headers: dict, payload: dict, retries: int = 4) -> dict:
+    """POST with exponential backoff on transient connection/read errors."""
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                r = await client.post(url, headers=headers, json=payload)
+                r.raise_for_status()
+                return r.json()
+        except _RETRYABLE as exc:
+            last_exc = exc
+            if attempt < retries - 1:
+                await asyncio.sleep(1.5 * (attempt + 1))
+    assert last_exc is not None
+    raise last_exc
+
+
 async def chat_completion(system_prompt: str, user_message: str) -> str:
     """Single-turn chat; returns assistant text or raises on API errors."""
     settings = get_settings()
@@ -42,10 +64,7 @@ async def chat_completion(system_prompt: str, user_message: str) -> str:
     }
     payload = _build_payload(settings, system_prompt, user_message)
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        r = await client.post(url, headers=headers, json=payload)
-        r.raise_for_status()
-        data = r.json()
+    data = await _post_with_retry(url, headers, payload)
 
     choice = data.get("choices", [{}])[0]
     msg = choice.get("message") or {}

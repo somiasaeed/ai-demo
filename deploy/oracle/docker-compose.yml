@@ -28,6 +28,9 @@ services:
       # Real CV + photo live on the host (uploaded once), NOT in the image.
       - ../../samples:/app/samples:ro
       - ../../photos:/app/photos:ro
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     networks: [hubnet]
 
   caddy:
