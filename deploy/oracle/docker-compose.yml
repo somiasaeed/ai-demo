@@ -14,7 +14,9 @@
 
 services:
   app:
-    build: ../..
+    # Prebuilt multi-arch image from GHCR (built by GitHub Actions on every push).
+    image: ghcr.io/somiasaeed/ai-demo:latest
+    pull_policy: always
     container_name: ai-agent-hub
     restart: unless-stopped
     env_file: ../../.env
@@ -23,6 +25,9 @@ services:
     volumes:
       # Generated CV PDFs/DOCX/MD persist on the host and survive image rebuilds.
       - ../../output:/app/output
+      # Real CV + photo live on the host (uploaded once), NOT in the image.
+      - ../../samples:/app/samples:ro
+      - ../../photos:/app/photos:ro
     networks: [hubnet]
 
   caddy:

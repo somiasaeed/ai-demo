@@ -1,0 +1,16 @@
+# Copy to terraform.tfvars and fill in. Get the values from Cloud Shell:
+#   compartment_ocid:  oci iam availability-domain list --query 'data[0]."compartment-id"'
+#   ssh_public_key:    cat ~/aihub_key.pub   (the key the launcher generated)
+
+compartment_ocid = "ocid1.tenancy.oc1 REPLACE_ME"
+region           = "eu-milan-1"
+instance_name    = "aihub"
+
+# Micro = always available, 1 GB RAM. For more RAM use "VM.Standard.A1.Flex"
+# (may be out of capacity; retry).
+instance_shape = "VM.Standard.E2.1.Micro"
+a1_ocpus       = 2
+a1_memory_gb   = 8
+boot_volume_gb = 50
+
+ssh_public_key = "ssh-rsa AAAAB3Nza... REPLACE_ME"

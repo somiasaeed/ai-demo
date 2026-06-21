@@ -1,0 +1,74 @@
+#cloud-config
+# Runs once when Terraform creates the instance. Installs Docker, lays down the
+# production compose + Caddyfile, and creates the data directories. Secrets are
+# NOT here — GitHub Actions writes .env at deploy time.
+
+write_files:
+  - path: /home/ubuntu/ai-demo/deploy/oracle/docker-compose.yml
+    owner: ubuntu:ubuntu
+    permissions: '0644'
+    content: |
+      services:
+        app:
+          image: ghcr.io/somiasaeed/ai-demo:latest
+          pull_policy: always
+          container_name: ai-agent-hub
+          restart: unless-stopped
+          env_file: ../../.env
+          environment:
+            - PRODUCTION=true
+          volumes:
+            - ../../output:/app/output
+            - ../../samples:/app/samples:ro
+            - ../../photos:/app/photos:ro
+          networks: [hubnet]
+        caddy:
+          image: caddy:2
+          container_name: caddy
+          restart: unless-stopped
+          ports:
+            - "80:80"
+            - "443:443"
+          environment:
+            - DOMAIN=${DOMAIN}
+          volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy_data:/data
+            - caddy_config:/config
+          depends_on: [app]
+          networks: [hubnet]
+        duckdns:
+          image: lscr.io/linuxserver/duckdns:latest
+          container_name: duckdns
+          restart: unless-stopped
+          environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=${TZ:-Etc/UTC}
+            - SUBDOMAINS=${DUCKDNS_SUBDOMAIN}
+            - TOKEN=${DUCKDNS_TOKEN}
+            - LOG_LEVEL=info
+          profiles: ["duckdns"]
+      volumes:
+        caddy_data:
+        caddy_config:
+      networks:
+        hubnet:
+
+  - path: /home/ubuntu/ai-demo/deploy/oracle/Caddyfile
+    owner: ubuntu:ubuntu
+    permissions: '0644'
+    content: |
+      {
+          admin off
+      }
+      {$DOMAIN} {
+          reverse_proxy app:8080
+          encode gzip
+      }
+
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - usermod -aG docker ubuntu
+  - mkdir -p /home/ubuntu/ai-demo/samples /home/ubuntu/ai-demo/photos /home/ubuntu/ai-demo/output
+  - chown -R ubuntu:ubuntu /home/ubuntu/ai-demo

@@ -1,110 +1,99 @@
-# Deploy to Oracle Cloud Always-Free (best free option for this app)
+# Oracle Always-Free deploy — Terraform + GitHub Actions CI/CD
 
-Why Oracle: **$0 forever**, and it gives you the **RAM + disk the CV agent needs**.
-Render's free tier starved you at 512 MB — the CV agent builds 4 PDFs in parallel
-and OOM-killed there. Oracle's free Ampere VM gives **up to 24 GB RAM / 200 GB disk**,
-which is far more than enough.
+Professional, fully free, **push-to-deploy** pipeline for the AI Agent Hub.
 
-| Need (CV agent) | Oracle free gives | Render free gave |
-|---|---|---|
-| RAM for parallel PDF build | up to **24 GB** | 512 MB |
-| Disk for generated PDFs | up to **200 GB** | ephemeral |
-| Always-on (for prayer scheduler) | yes | sleeps after 15 min |
+- **Infra as code** — `terraform apply` (run from Cloud Shell, pre-authenticated) creates the VCN, security list (22/80/443), and a Ubuntu instance that **auto-installs Docker** via cloud-init.
+- **CI/CD** — every `git push` to `main` builds a **multi-arch** image (amd64 + arm64 → works on both the x86 micro and the ARM A1), pushes it to **GHCR**, then deploys to the server over SSH.
+- **Secrets never in git** — they live in GitHub Secrets and are written to the server at deploy time. Your real CV/photo are uploaded once and **runtime-mounted** (not baked into the image).
+
+**Cost: $0** — Oracle Always-Free + GHCR (public, free) + GitHub Actions (unlimited for public repos) + Terraform.
 
 ---
 
-## 1. Create the VM (Oracle Console → Compute → Instances → Create)
+## One-time setup
 
-- **Shape:** `VM.Standard.A1.Flex` (Ampere ARM). Recommended sweet spot:
-  **2 OCPU / 8 GB RAM** — easy to allocate and ample for CV generation.
-  You can go up to **4 OCPU / 24 GB** (still free) if you want max headroom,
-  but the 4/24 single VM is the hardest to get capacity for.
-- **Image:** Canonical **Ubuntu 22.04** (aarch64).
-- **SSH keys:** **Save the private key** — unrecoverable later.
-- **Boot volume:** click *Specify a custom boot volume size* → set **~150 GB**
-  (Always-Free total block-storage allowance is 200 GB). This is where your
-  generated PDFs accumulate, so give it room.
-- Keep "Assign a public IPv4 address."
-
-> **"Out of host capacity"?** The free ARM shapes fill up. Pick a quieter region
-> during signup (Phoenix, San Jose, Mumbai, Osaka, Singapore, Stockholm, Milan…)
-> and click *Create* again later — capacity frees up.
-
-## 2. Reserve the IP + open ports
-
-- **Reserve the public IP** (so it survives stop/start): instance → *IP addresses*
-  → Ephemeral → *Reserve*.
-- **Open ports** — Oracle only opens SSH/22 by default. VCN → Security Lists →
-  default → Add Ingress Rules: `0.0.0.0/0` TCP **80** and `0.0.0.0/0` TCP **443**.
-  (Do **not** open 8080 — only Caddy is public.)
-
-## 3. On the VM: install + run
-
+### 1. Provision the server
+**Option A — fresh server (recommended for a clean, reproducible setup):**
 ```bash
-# from your PC
-ssh -i <your-private-key> ubuntu@<VM-PUBLIC-IP>
+# in Oracle Cloud Shell (Terraform is pre-installed + pre-authenticated)
+cd ai-demo/deploy/oracle/terraform
+cp terraform.tfvars.example terraform.tfvars      # fill compartment_ocid + both SSH public keys
+terraform init
+terraform apply                                   # creates VCN + instance; cloud-init installs Docker
+```
+Grab the printed `instance_public_ip`.
+
+**Option B — use an existing instance** (e.g. the micro you already made): skip Terraform; just ensure Docker is installed there.
+
+### 2. Create the deploy key (so GitHub Actions can SSH in)
+```bash
+# on your machine or in Cloud Shell
+ssh-keygen -t ed25519 -f ~/.ssh/aihub_deploy -N ""
+```
+- **Public key** (`aihub_deploy.pub`) → add to the server:
+  ```bash
+  ssh ubuntu@<SERVER-IP> 'cat >> ~/.ssh/authorized_keys' < ~/.ssh/aihub_deploy.pub
+  ```
+  (Or set it as `deploy_ssh_public_key` in `terraform.tfvars` before `apply`.)
+- **Private key** (`aihub_deploy`) → store as GitHub Secret **`DEPLOY_SSH_KEY`** (paste the whole file).
+
+### 3. Set the GitHub Secrets
+Repo → **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret | Value |
+|---|---|
+| `OPENAI_API_KEY` | your LLM key |
+| `OPENAI_BASE_URL` | e.g. `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | e.g. `gpt-4o-mini` |
+| `JWT_SECRET` | from `python -m hub.core.security` |
+| `ADMIN_USERNAME` | `admin` |
+| `ADMIN_PASSWORD_HASH` | bcrypt hash from `python -m hub.core.security` |
+| `TELEGRAM_BOT_TOKEN` | from @BotFather |
+| `DEPLOY_SSH_KEY` | the private key from step 2 |
+| `ORACLE_HOST` | server public IP, e.g. `92.4.172.53` |
+| `DOMAIN` | e.g. `aihub.duckdns.org` |
+| `DUCKDNS_TOKEN` | from duckdns.org |
+| `DUCKDNS_SUBDOMAIN` | e.g. `aihub` |
+| `TZ` | e.g. `Europe/Berlin` |
+
+(`OPENAI_TEMPERATURE`, `OPENAI_MAX_TOKENS`, `TELEGRAM_WEBHOOK_SECRET` are optional.)
+
+### 4. Point a free domain at the server (for HTTPS — Telegram requires it)
+1. [duckdns.org](https://www.duckdns.org) → add a subdomain (e.g. `aihub`).
+2. Paste the server IP → **update** (so `aihub.duckdns.org` resolves to it).
+3. Copy the **token** → `DUCKDNS_TOKEN` secret.
+
+### 5. Upload your real CV + photo once (runtime data — not in the repo/image)
+```bash
+scp samples/cv.pdf samples/cover_letter.pdf ubuntu@<SERVER-IP>:~/ai-demo/samples/
+scp photos/photo.JPG              ubuntu@<SERVER-IP>:~/ai-demo/photos/
 ```
 
+### 6. Deploy
 ```bash
-# on the VM
-git clone https://github.com/somia295/ai-demo.git && cd ai-demo
-bash deploy/oracle/install.sh          # installs Docker, preps output/
-newgrp docker                           # pick up docker group
+git push origin main     # triggers the workflow: build → push image → deploy
 ```
+Watch the **Actions** tab. The `deploy` job ends with a health check against `https://<DOMAIN>/health`.
 
-Put your secrets in the **repo-root** `.env` (gitignored, didn't come with the clone).
-From your PC:
+### 7. Register the Telegram webhook (once)
 ```bash
-scp -i <your-private-key> .env ubuntu@<VM-PUBLIC-IP>:~/ai-demo/.env
-```
-Make sure it has: `OPENAI_API_KEY`, `JWT_SECRET`, `ADMIN_PASSWORD_HASH`,
-`TELEGRAM_BOT_TOKEN`, `PRODUCTION=true`.
-
-Edit `deploy/oracle/.env` → set `DOMAIN` + `DUCKDNS_*`
-(create a free subdomain at [duckdns.org](https://www.duckdns.org) first).
-
-Build + launch (native ARM build — avoids x86/ARM image mismatch):
-```bash
-cd deploy/oracle
-docker compose up -d --build --profile duckdns
-docker compose logs -f app     # wait for "Application startup complete"
-```
-
-## 4. HTTPS + Telegram
-
-Caddy auto-provisions a Let's Encrypt cert for your DuckDNS domain:
-```bash
-curl https://aihub.duckdns.org/health      # {"status":"ok"}
-```
-
-Register the webhook (Telegram requires https — that's why Caddy is mandatory):
-```bash
-curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://aihub.duckdns.org/webhook/telegram"
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<DOMAIN>/webhook/telegram"
 curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"   # last_error_message should be empty
 ```
 
-Message your bot → it replies. Done.
-
 ---
 
-## Operational notes
+## Ongoing
+- Edit code → `git push` → bot auto-rebuilds and redeploys. **No SSH, no clicking.**
+- Secrets: change them in GitHub **Settings → Secrets**; they're injected on the next deploy.
+- CV/photo: re-upload to the server only when they change (not on every deploy).
 
-- **Survives reboots:** all three services use `restart: unless-stopped`; Caddy +
-  DuckDNS are containers too, so they auto-start with Docker.
-- **Generated PDFs** live in `~/ai-demo/output/` on the host (bind mount) — they
-  persist across image rebuilds. Browse or `scp` them down anytime.
-- **Prayer reminders are in-memory:** a VM reboot wipes registered users; re-share
-  your location once to re-enable. (Tell me if you want this persisted to disk/DB.)
-- **Updating the app:** `git pull && docker compose up -d --build` (output/ is
-  preserved by the bind mount).
-- **Cost:** $0. Oracle holds a card on file only to verify you're human; you are
-  not charged while on Always-Free resources.
+## Operations
+- **Logs:** `ssh ubuntu@<SERVER-IP>` → `cd ~/ai-demo/deploy/oracle && docker compose logs -f app`
+- **Update the server manually:** `cd ~/ai-demo/deploy/oracle && docker compose pull && docker compose up -d`
+- **Fresh server / disaster recovery:** `terraform apply` from Cloud Shell, then push.
 
 ## Troubleshooting
-
-- **`curl /health` fails / cert not issued:** ensure ports **80 and 443** are open
-  in the security list, and your DuckDNS domain resolves to the VM IP
-  (`nslookup aihub.duckdns.org`).
-- **`getWebhookInfo` shows `last_error_message`:** usually the domain/cert — re-run
-  the `setWebhook` curl after Caddy has issued the cert.
-- **Docker permission denied:** run `newgrp docker` (or log out/in).
+- **`/health` fails / cert not issued:** ensure DuckDNS resolves to the server IP (`nslookup <domain>`) and ports **80 + 443** are open in the security list.
+- **`getWebhookInfo` shows `last_error_message`:** re-run `setWebhook` after the cert is issued.
+- **Deploy job can't SSH:** the deploy public key isn't in the server's `~/.ssh/authorized_keys`, or `ORACLE_HOST`/`DEPLOY_SSH_KEY` secrets are wrong.

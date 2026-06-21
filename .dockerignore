@@ -6,3 +6,6 @@ __pycache__/
 .env
 output/
 *.egg-info/
+# Personal data is runtime-mounted, never built into the image
+samples/
+photos/

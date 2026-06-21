@@ -25,10 +25,8 @@ WORKDIR /app
 COPY --from=builder /build/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Copy application code
+# Copy application code (samples/photos are runtime-mounted, not baked in — keeps PII out of the image)
 COPY hub/ hub/
-COPY samples/ samples/
-COPY photos/ photos/
 
 # Create writable output directory
 RUN mkdir -p output && chown appuser:appuser output

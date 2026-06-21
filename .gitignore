@@ -6,3 +6,16 @@
 output/
 __pycache__/
 *.pyc
+
+# Terraform — never commit state/tfvars (may contain secrets)
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+*.tfplan
+
+# Personal data — runtime-mounted, never in the repo
+samples/cv.pdf
+samples/cv.md
+samples/cover_letter.pdf
+photos/photo.JPG
