@@ -50,12 +50,18 @@ def _find_cv_photo(root: Path) -> str | None:
 
 
 def _resolve_cv_and_cover(root: Path) -> tuple[Path, Path]:
+    # Prefer the editable cv.md (plain text you can edit); fall back to cv.pdf.
+    cv_md = root / "samples" / "cv.md"
     cv_pdf = root / "samples" / "cv.pdf"
-    if not cv_pdf.is_file():
+    if cv_md.is_file():
+        cv = cv_md
+        logger.info("Using samples/cv.md as the CV source (editable).")
+    elif cv_pdf.is_file():
+        logger.info("samples/cv.md not found — using samples/cv.pdf. Add a cv.md to edit details easily.")
+        cv = cv_pdf
+    else:
         raise FileNotFoundError(
-            "Missing samples/cv.pdf — export YOUR CV as PDF (name, email, LinkedIn, experience). "
-            "samples/cv.md is not used anymore so placeholder text "
-            "(e.g. old template names) never gets tailored by mistake."
+            "Missing samples/cv.md (or samples/cv.pdf) — add your CV."
         )
 
     cl_pdf = root / "samples" / "cover_letter.pdf"
@@ -72,7 +78,7 @@ def _resolve_cv_and_cover(root: Path) -> tuple[Path, Path]:
             "Missing samples/cover_letter.pdf or samples/cover_letter.md — add your cover letter."
         )
 
-    return cv_pdf, cover
+    return cv, cover
 
 
 def tailor_cv_from_samples_sync(
