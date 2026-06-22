@@ -86,7 +86,8 @@ def tailor_cv_from_samples_sync(
     """
     root = _repo_root()
     cv, cover = _resolve_cv_and_cover(root)
-    photo = _find_cv_photo(root)
+    # Photo is OFF by default (set CV_INCLUDE_PHOTO=true to embed photos/photo.jpg).
+    photo = _find_cv_photo(root) if os.environ.get("CV_INCLUDE_PHOTO", "").lower() == "true" else None
 
     out = root / "output"
     out.mkdir(parents=True, exist_ok=True)
