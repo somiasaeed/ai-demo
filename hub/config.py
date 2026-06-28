@@ -49,8 +49,8 @@ class Settings(BaseSettings):
     adzuna_app_key: str | None = Field(default=None, description="Adzuna API app_key.")
     job_search_country: str = Field(default="de", description="Adzuna country code; 'de' = all Germany.")
     job_search_keywords: str = Field(
-        default="Werkstudent Data Science,Werkstudent IT,Praktikum Data Science,Praktikum IT,Working Student Data Science,Data Scientist",
-        description="Comma-separated search terms (focused on Data Science + IT).",
+        default="Werkstudent Data Science,Werkstudent IT,Praktikum Data Science,Praktikum IT,Working Student Data Science,Data Scientist,Software Engineer,Softwareentwickler,Python,Machine Learning,Data Analyst,Backend,Frontend",
+        description="Comma-separated search terms (Data Science + IT).",
     )
     job_search_interval_minutes: int = Field(default=120, ge=10, description="How often to poll for new jobs.")
     job_search_max_cvs: int = Field(default=3, ge=0, description="Max CVs auto-generated per cycle; rest get a link only.")

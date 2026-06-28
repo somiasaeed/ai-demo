@@ -111,14 +111,22 @@ async def process_new_jobs(chat_id: int | None = None) -> int:
 async def _generate_and_send_cv(chat_id: int, job: dict) -> None:
     settings = get_settings()
     token = settings.telegram_bot_token
+    desc = (job.get("description") or "").strip()
+    if not desc:
+        await send_telegram_message(
+            token, chat_id, "⚠️ This job has no description to tailor to — skipping CV."
+        )
+        return
+    # Truncate very long postings so the prompt fits the model's context window.
+    desc = desc[:4000]
     try:
         version, _summary = await asyncio.to_thread(
-            tailor_cv_from_samples_sync, job.get("description", ""), False, None
+            tailor_cv_from_samples_sync, desc, False, None
         )
-    except Exception:
+    except Exception as e:
         logger.exception("CV generation failed for job %s", job.get("id"))
         await send_telegram_message(
-            token, chat_id, "⚠️ Couldn't generate the CV for this job. Try /cv with the description."
+            token, chat_id, f"⚠️ CV generation failed: {str(e)[:200]}"
         )
         return
 
