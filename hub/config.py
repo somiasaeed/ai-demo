@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     # ── Job search (Adzuna) — optional; job alerts disabled if app_id is unset ──
     adzuna_app_id: str | None = Field(default=None, description="Adzuna API app_id (free, developer.adzuna.com).")
     adzuna_app_key: str | None = Field(default=None, description="Adzuna API app_key.")
+    jooble_api_key: str | None = Field(default=None, description="Jooble API key (free, jooble.org/api). Optional second job source.")
     job_search_country: str = Field(default="de", description="Adzuna country code; 'de' = all Germany.")
     job_search_category: str = Field(
         default="it-jobs",

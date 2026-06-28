@@ -69,8 +69,10 @@ async def process_new_jobs(chat_id: int | None = None) -> int:
     Returns the number of new jobs found.
     """
     settings = get_settings()
-    if not settings.adzuna_app_id or not settings.adzuna_app_key:
-        logger.info("Adzuna not configured — job search skipped.")
+    has_adzuna = bool(settings.adzuna_app_id and settings.adzuna_app_key)
+    has_jooble = bool(settings.jooble_api_key)
+    if not has_adzuna and not has_jooble:
+        logger.info("No job source configured — job search skipped.")
         return 0
     targets = [chat_id] if chat_id is not None else sorted(_job_subscribers)
     if not targets:
@@ -78,7 +80,7 @@ async def process_new_jobs(chat_id: int | None = None) -> int:
 
     jobs = await search_jobs(settings)
     seen = set(_load_json(SEEN_FILE, []))
-    new_jobs = [j for j in jobs if j["id"] not in seen]
+    new_jobs = [j for j in jobs if j.get("signature") not in seen]
     if not new_jobs:
         return 0
 
@@ -103,7 +105,7 @@ async def process_new_jobs(chat_id: int | None = None) -> int:
             except Exception:
                 logger.exception("Failed to notify job %s", job.get("id"))
 
-    seen.update(j["id"] for j in new_jobs)
+    seen.update(j["signature"] for j in new_jobs if j.get("signature"))
     _save_json(SEEN_FILE, sorted(seen)[-2000:])  # cap the seen list
     return len(new_jobs)
 
@@ -161,8 +163,8 @@ async def start_job_scheduler() -> None:
         return
     _load_subscribers()
     settings = get_settings()
-    if not (settings.adzuna_app_id and settings.adzuna_app_key):
-        logger.info("Adzuna not configured — job scheduler disabled.")
+    if not (settings.adzuna_app_id and settings.adzuna_app_key) and not settings.jooble_api_key:
+        logger.info("No job source configured — job scheduler disabled.")
         return
     _task = asyncio.create_task(_loop())
     logger.info("Job scheduler started (interval=%s min)", settings.job_search_interval_minutes)

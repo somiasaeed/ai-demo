@@ -57,6 +57,7 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | `TZ` | e.g. `Europe/Berlin` |
 | `ADZUNA_APP_ID` | *(optional)* from developer.adzuna.com — enables `/jobs` + new-job alerts |
 | `ADZUNA_APP_KEY` | *(optional)* matching app key |
+| `JOOBLE_API_KEY` | *(optional)* from jooble.org/api — second job source |
 
 (`OPENAI_TEMPERATURE`, `OPENAI_MAX_TOKENS`, `TELEGRAM_WEBHOOK_SECRET` are optional.)
 
