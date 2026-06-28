@@ -85,29 +85,26 @@ async def process_new_jobs(chat_id: int | None = None) -> int:
         return 0
 
     max_cvs = settings.job_search_max_cvs
+    # Process a few jobs per cycle — each gets its link + all 4 PDFs together,
+    # then the next job. No flood of link-only messages. Remaining new jobs are
+    # NOT marked seen, so they come back next cycle (nothing is missed).
+    to_process = new_jobs[:max_cvs]
     for cid in targets:
-        for idx, job in enumerate(new_jobs):
+        for job in to_process:
             try:
-                if idx < max_cvs:
-                    await send_telegram_message(
-                        settings.telegram_bot_token,
-                        cid,
-                        f"🆕 NEW: {job['title']}\n{job['company']} — {job['location']}\n{job['url']}\n\n"
-                        "Generating your tailored CV + cover letter (EN + DE)…",
-                    )
-                    await _generate_and_send_cv(cid, job)
-                else:
-                    await send_telegram_message(
-                        settings.telegram_bot_token,
-                        cid,
-                        f"🔗 Also new: {job['title']}\n{job['company']} — {job['location']}\n{job['url']}",
-                    )
+                await send_telegram_message(
+                    settings.telegram_bot_token,
+                    cid,
+                    f"🆕 {job['title']}\n{job['company']} — {job['location']}\n{job['url']}\n\n"
+                    "Generating your tailored CV + cover letter (EN + DE)…",
+                )
+                await _generate_and_send_cv(cid, job)
             except Exception:
                 logger.exception("Failed to notify job %s", job.get("id"))
 
-    seen.update(j["signature"] for j in new_jobs if j.get("signature"))
-    _save_json(SEEN_FILE, sorted(seen)[-2000:])  # cap the seen list
-    return len(new_jobs)
+    seen.update(j["signature"] for j in to_process if j.get("signature"))
+    _save_json(SEEN_FILE, sorted(seen)[-2000:])
+    return len(to_process)
 
 
 async def _generate_and_send_cv(chat_id: int, job: dict) -> None:
