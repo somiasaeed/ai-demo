@@ -79,6 +79,7 @@ async def register_bot_commands(bot_token: str) -> None:
         {"command": "weather", "description": "Get weather for a city"},
         {"command": "recipe", "description": "Create a recipe from a prompt"},
         {"command": "prayer", "description": "Get prayer times + Tahajjud for your location"},
+        {"command": "jobs", "description": "Search jobs (Germany) + tailor CV; subscribe to alerts"},
         {"command": "help", "description": "Show available agents and commands"},
     ]
     url = f"https://api.telegram.org/bot{bot_token}/setMyCommands"

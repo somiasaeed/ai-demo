@@ -55,6 +55,8 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | `DUCKDNS_TOKEN` | from duckdns.org |
 | `DUCKDNS_SUBDOMAIN` | e.g. `aihub` |
 | `TZ` | e.g. `Europe/Berlin` |
+| `ADZUNA_APP_ID` | *(optional)* from developer.adzuna.com — enables `/jobs` + new-job alerts |
+| `ADZUNA_APP_KEY` | *(optional)* matching app key |
 
 (`OPENAI_TEMPERATURE`, `OPENAI_MAX_TOKENS`, `TELEGRAM_WEBHOOK_SECRET` are optional.)
 

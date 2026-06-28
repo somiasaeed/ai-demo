@@ -44,6 +44,17 @@ class Settings(BaseSettings):
         description="Value of X-Telegram-Bot-Api-Secret-Token header that Telegram sends",
     )
 
+    # ── Job search (Adzuna) — optional; job alerts disabled if app_id is unset ──
+    adzuna_app_id: str | None = Field(default=None, description="Adzuna API app_id (free, developer.adzuna.com).")
+    adzuna_app_key: str | None = Field(default=None, description="Adzuna API app_key.")
+    job_search_country: str = Field(default="de", description="Adzuna country code; 'de' = all Germany.")
+    job_search_keywords: str = Field(
+        default="Werkstudent,Praktikum,Working Student,internship",
+        description="Comma-separated search terms.",
+    )
+    job_search_interval_minutes: int = Field(default=120, ge=10, description="How often to poll for new jobs.")
+    job_search_max_cvs: int = Field(default=3, ge=0, description="Max CVs auto-generated per cycle; rest get a link only.")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

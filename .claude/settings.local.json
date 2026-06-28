@@ -17,7 +17,17 @@
       "Bash(python -c \"from hub.agents.prayer import PrayerAgent; print\\('PrayerAgent OK'\\)\")",
       "Bash(python:*)",
       "Bash(curl -s \"https://api.aladhan.com/v1/timings?latitude=52.52&longitude=13.41&method=2\")",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(uv lock *)",
+      "Bash(uvx ruff *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(docker --version)",
+      "Bash(git -C \"D:/Agents/ai-demo\" status --short -- deploy/)",
+      "Bash(git -C \"D:/Agents/ai-demo\" check-ignore deploy/oracle/.env.example deploy/oracle/.env)",
+      "Bash(git -C \"D:/Agents/ai-demo\" update-index --chmod=+x deploy/oracle/install.sh)",
+      "Bash(git -C \"D:/Agents/ai-demo\" ls-files -s deploy/oracle/install.sh)",
+      "Bash(git push *)",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python -c ' *)"
     ]
   }
 }

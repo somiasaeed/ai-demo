@@ -48,8 +48,10 @@ _settings = get_settings()
 async def lifespan(_: FastAPI):
     """Startup: launch the prayer-reminder scheduler and register Telegram commands."""
     from hub.services.prayer_scheduler import start_prayer_scheduler
+    from hub.services.job_scheduler import start_job_scheduler
 
     await start_prayer_scheduler()
+    await start_job_scheduler()
 
     settings = get_settings()
     if settings.telegram_bot_token:

@@ -281,6 +281,20 @@ async def telegram_webhook(
         await send_telegram_message(token, chat_id, telegram_dispatch.TELEGRAM_HELP)
         return JSONResponse({"ok": True})
 
+    # Job search + alerts (/jobs)
+    if text.lower().startswith("/jobs"):
+        from hub.services.job_scheduler import process_new_jobs, register_job_subscriber
+
+        register_job_subscriber(chat_id)
+        await send_telegram_message(
+            token,
+            chat_id,
+            "🔍 Searching jobs across Germany now. You're also subscribed for new-job alerts "
+            "every ~2 hours — new matches come with a tailored EN+DE CV + cover letter.",
+        )
+        asyncio.create_task(process_new_jobs(chat_id))
+        return JSONResponse({"ok": True})
+
     # Check conversation state
     state = _get_state(chat_id)
 
