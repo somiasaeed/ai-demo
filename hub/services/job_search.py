@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -29,6 +30,19 @@ def _signature(title: str, company: str) -> str:
 def _is_fulltime(employment_type: str) -> bool:
     t = (employment_type or "").lower().replace("-", "").replace("_", "").replace(" ", "")
     return "fulltime" in t
+
+
+def _is_recent(created_str: str, max_age_hours: int) -> bool:
+    """True if the job's timestamp is within max_age_hours of now (0 = always)."""
+    if max_age_hours <= 0:
+        return True
+    try:
+        dt = datetime.fromisoformat((created_str or "").replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) - dt <= timedelta(hours=max_age_hours)
+    except Exception:
+        return True  # keep if the timestamp can't be parsed
 
 
 def _parse_adzuna_item(item: dict) -> dict:
@@ -120,6 +134,8 @@ async def search_jobs(settings: Settings) -> list[dict[str, Any]]:
     unique: list[dict[str, Any]] = []
     for j in jobs:
         if settings.job_search_exclude_fulltime and _is_fulltime(j.get("employment_type", "")):
+            continue
+        if not _is_recent(j.get("created", ""), settings.job_search_max_age_hours):
             continue
         j["signature"] = _signature(j["title"], j["company"])
         if not j["signature"] or j["signature"] in seen_sig:
