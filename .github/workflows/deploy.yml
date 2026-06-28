@@ -69,6 +69,10 @@ jobs:
           DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
           DUCKDNS_SUBDOMAIN: ${{ secrets.DUCKDNS_SUBDOMAIN }}
           TZ: ${{ secrets.TZ }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          JOB_SEARCH_INTERVAL_MINUTES: ${{ secrets.JOB_SEARCH_INTERVAL_MINUTES }}
+          JOB_SEARCH_MAX_CVS: ${{ secrets.JOB_SEARCH_MAX_CVS }}
         run: |
           set -e
           umask 077
@@ -85,6 +89,10 @@ jobs:
             echo "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}"
             echo "TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET}"
             echo "PRODUCTION=true"
+            echo "ADZUNA_APP_ID=${ADZUNA_APP_ID}"
+            echo "ADZUNA_APP_KEY=${ADZUNA_APP_KEY}"
+            echo "JOB_SEARCH_INTERVAL_MINUTES=${JOB_SEARCH_INTERVAL_MINUTES:-120}"
+            echo "JOB_SEARCH_MAX_CVS=${JOB_SEARCH_MAX_CVS:-3}"
           } > out/app.env
           {
             echo "DOMAIN=${DOMAIN}"
