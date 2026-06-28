@@ -1,4 +1,8 @@
-"""Adzuna job search (free API, Germany endpoint)."""
+"""Adzuna job search (free API, Germany endpoint).
+
+Primary filter is the configured category (default 'it-jobs' = ALL IT/software/
+data roles in a single call). Optional extra keywords can narrow further.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +19,7 @@ _ADZUNA_URL = "https://api.adzuna.com/v1/api/jobs/{country}/search/{page}"
 
 
 async def search_jobs(settings: Settings) -> list[dict[str, Any]]:
-    """Search Adzuna for each configured keyword; return merged, newest-first jobs.
+    """Search Adzuna. Returns merged, newest-first job dicts.
 
     Each job dict: id, title, company, location, url, description, created.
     """
@@ -23,22 +27,30 @@ async def search_jobs(settings: Settings) -> list[dict[str, Any]]:
         logger.warning("Adzuna credentials not set; skipping job search.")
         return []
 
-    terms = [t.strip() for t in settings.job_search_keywords.split(",") if t.strip()]
+    # Build the list of queries: the category (broad) + any extra keywords (narrow).
+    queries: list[dict[str, str]] = []
+    if settings.job_search_category:
+        queries.append({"category": settings.job_search_category})
+    for term in [t.strip() for t in settings.job_search_keywords.split(",") if t.strip()]:
+        queries.append({"what": term})
+    if not queries:
+        queries.append({})
+
     jobs: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        for term in terms:
+        for q in queries:
             try:
                 r = await client.get(
                     _ADZUNA_URL.format(country=settings.job_search_country, page=1),
                     params={
                         "app_id": settings.adzuna_app_id,
                         "app_key": settings.adzuna_app_key,
-                        "what": term,
                         "results_per_page": 20,
                         "sort_by": "date",
                         "content-type": "application/json",
+                        **q,
                     },
                 )
                 r.raise_for_status()
@@ -60,7 +72,7 @@ async def search_jobs(settings: Settings) -> list[dict[str, Any]]:
                         }
                     )
             except Exception:
-                logger.exception("Adzuna search failed for term=%r", term)
+                logger.exception("Adzuna search failed for %r", q)
 
     jobs.sort(key=lambda j: j.get("created", ""), reverse=True)
     return jobs
