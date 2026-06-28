@@ -26,6 +26,11 @@ def _signature(title: str, company: str) -> str:
     return f"{t}|{c}"
 
 
+def _is_fulltime(employment_type: str) -> bool:
+    t = (employment_type or "").lower().replace("-", "").replace("_", "").replace(" ", "")
+    return "fulltime" in t
+
+
 def _parse_adzuna_item(item: dict) -> dict:
     area = (item.get("location") or {}).get("area") or []
     return {
@@ -35,6 +40,7 @@ def _parse_adzuna_item(item: dict) -> dict:
         "location": ", ".join(area),
         "url": item.get("redirect_url") or "",
         "description": (item.get("description") or "").strip(),
+        "employment_type": item.get("contract_time") or "",
         "created": item.get("created") or "",
     }
 
@@ -98,6 +104,7 @@ async def _search_jooble(settings: Settings) -> list[dict[str, Any]]:
                 "location": (item.get("location") or "").strip(),
                 "url": item.get("link") or "",
                 "description": (item.get("snippet") or "").strip(),
+                "employment_type": item.get("type") or "",
                 "created": item.get("updated") or "",
             }
         )
@@ -112,6 +119,8 @@ async def search_jobs(settings: Settings) -> list[dict[str, Any]]:
     seen_sig: set[str] = set()
     unique: list[dict[str, Any]] = []
     for j in jobs:
+        if settings.job_search_exclude_fulltime and _is_fulltime(j.get("employment_type", "")):
+            continue
         j["signature"] = _signature(j["title"], j["company"])
         if not j["signature"] or j["signature"] in seen_sig:
             continue

@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     )
     job_search_interval_minutes: int = Field(default=120, ge=10, description="How often to poll for new jobs.")
     job_search_max_cvs: int = Field(default=3, ge=0, description="Max CVs auto-generated per cycle; rest get a link only.")
+    job_search_exclude_fulltime: bool = Field(default=True, description="Exclude full-time jobs (keep student/part-time/internship).")
 
     model_config = SettingsConfigDict(
         env_file=".env",
