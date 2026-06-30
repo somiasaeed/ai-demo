@@ -33,16 +33,27 @@ def _is_fulltime(employment_type: str) -> bool:
 
 
 def _is_recent(created_str: str, max_age_hours: int) -> bool:
-    """True if the job's timestamp is within max_age_hours of now (0 = always)."""
+    """True only if the timestamp parses AND is within max_age_hours of now.
+
+    max_age_hours <= 0 disables the filter. Missing/unparseable timestamps are
+    DROPPED (strict: only confirmed-recent jobs are shown, so stale ones never
+    leak through on a parse error).
+    """
     if max_age_hours <= 0:
         return True
+    s = (created_str or "").strip()
+    if not s:
+        return False
     try:
-        dt = datetime.fromisoformat((created_str or "").replace("Z", "+00:00"))
+        s = s.replace("Z", "+00:00")
+        # Jooble sends 7 fractional digits; fromisoformat accepts at most 6.
+        s = re.sub(r"\.\d{7,}", lambda m: m.group(0)[:7], s)
+        dt = datetime.fromisoformat(s)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return datetime.now(timezone.utc) - dt <= timedelta(hours=max_age_hours)
     except Exception:
-        return True  # keep if the timestamp can't be parsed
+        return False
 
 
 def _parse_adzuna_item(item: dict) -> dict:

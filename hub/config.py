@@ -57,7 +57,7 @@ class Settings(BaseSettings):
         default="",
         description="Optional extra keywords (comma-separated). The category already covers IT broadly; add terms only to narrow further.",
     )
-    job_search_interval_minutes: int = Field(default=120, ge=10, description="How often to poll for new jobs.")
+    job_search_interval_minutes: int = Field(default=300, ge=10, description="How often to poll for new jobs (minutes).")
     job_search_max_cvs: int = Field(default=3, ge=0, description="Max CVs auto-generated per cycle; rest get a link only.")
     job_search_exclude_fulltime: bool = Field(default=True, description="Exclude full-time jobs (keep student/part-time/internship).")
     job_search_max_age_hours: int = Field(default=24, ge=0, description="Only show jobs posted within this many hours (0 = no age limit).")

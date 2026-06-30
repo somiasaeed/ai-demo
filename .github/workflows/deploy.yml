@@ -92,7 +92,7 @@ jobs:
             echo "PRODUCTION=true"
             echo "ADZUNA_APP_ID=${ADZUNA_APP_ID}"
             echo "ADZUNA_APP_KEY=${ADZUNA_APP_KEY}"
-            echo "JOB_SEARCH_INTERVAL_MINUTES=${JOB_SEARCH_INTERVAL_MINUTES:-120}"
+            echo "JOB_SEARCH_INTERVAL_MINUTES=${JOB_SEARCH_INTERVAL_MINUTES:-300}"
             echo "JOB_SEARCH_MAX_CVS=${JOB_SEARCH_MAX_CVS:-3}"
             echo "JOOBLE_API_KEY=${JOOBLE_API_KEY}"
           } > out/app.env
